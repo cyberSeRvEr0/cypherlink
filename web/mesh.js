@@ -39,7 +39,7 @@ export async function createNode(groupName) {
       pubsub: gossipsub({
         allowPublishToOwnTopic: true,
       }),
-      dht: KadDHT({
+      dht: new KadDHT({
         kBucketSize: 20,
         validators: {},
         storage: {},

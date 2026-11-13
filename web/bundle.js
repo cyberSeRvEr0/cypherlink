@@ -116787,7 +116787,7 @@ async function createNode(groupName2) {
       pubsub: gossipsub({
         allowPublishToOwnTopic: true
       }),
-      dht: KadDHT2({
+      dht: new KadDHT2({
         kBucketSize: 20,
         validators: {},
         storage: {}

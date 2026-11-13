@@ -10,7 +10,7 @@ echo ""
 if ! command -v python3 &>/dev/null; then
     echo "[1/5] Installing Python 3..."
     if command -v apt &>/dev/null; then
-        sudo apt update && sudo apt install -y python3 python3-pip python3-venv
+        sudo apt update && sudo apt install -y python3 python3-pip python3-venv python3-full   
     elif command -v brew &>/dev/null; then
         brew install python3
     else

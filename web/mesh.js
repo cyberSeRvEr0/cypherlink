@@ -2,6 +2,7 @@
  * Cypherlink — P2P mesh via js-libp2p (WebRTC + GossipSub).
  * This is the "extension" that enables browser-to-browser P2P.
  */
+import { identify } from '@libp2p/identify';   
 import { createLibp2p } from 'libp2p';
 import { webRTC } from '@libp2p/webrtc';
 import { webSockets } from '@libp2p/websockets';
@@ -26,10 +27,11 @@ export async function createMeshNode(relayUrl = 'ws://localhost:9001') {
       denyDialMultiaddr: async () => false, // Allow private IPs for LAN
     },
     services: {
+      identify: identify(),
       pubsub: gossipsub({
         allowPublishToOwnTopic: true,
       }),
-    },
+    },   
   });
 
   return node;

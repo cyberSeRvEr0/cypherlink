@@ -4,22 +4,26 @@
  */
 
 // ============ CONFIG ============
-const STUN_SERVERS = [
-  { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'stun:stun1.l.google.com:19302' },
-  { urls: 'stun:stun.cloudflare.com:3478' }
+const ICE_SERVERS = [
+  {
+    urls: [
+      'stun://' + location.hostname + ':3478',
+      'turn://' + location.hostname + ':3478',
+      'stun:stun.l.google.com:19302'
+    ]
+  }
 ];
 const SIGNALING_URL = 'ws://' + location.hostname + ':9001';
 const MAX_MEMBERS = 100;
 
 // ============ STATE ============
-let peerId = self.crypto.randomUUID();   
+let peerId = self.crypto.randomUUID();
 let nickname = '';
 let groupName = '';
 let groupKey = '';
-let groupCrypto = null;   
+let groupCrypto = null;
 let signalingWs = null;
-let peers = {};       // peer_id -> { pc, dc, nickname, videoEl }
+let peers = {};
 let localStream = null;
 let lastNick = null, lastTs = 0;
 
@@ -38,10 +42,11 @@ initMatrix();
 window.addEventListener('resize', initMatrix);
 
 (function drawMatrix() {
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.04)';   
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.04)';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.font = '14px monospace';
-      ctx.fillStyle = `rgba(0, ${120 + Math.random() * 80}, 0, 0.8)`;   
+  for (let i = 0; i < drops.length; i++) {
+    ctx.fillStyle = `rgba(0, ${120 + Math.random() * 80}, 0, 0.8)`;
     ctx.fillText(
       String.fromCharCode(33 + Math.floor(Math.random() * 93)),
       i * 14, drops[i] * 14
@@ -61,7 +66,7 @@ class CypherlinkCrypto {
   async _derive(key) {
     const ikm = new TextEncoder().encode(key);
     const base = await self.crypto.subtle.importKey('raw', ikm, 'HKDF', false, ['deriveKey']);
-    this._key = await crypto.subtle.deriveKey(
+    this._key = await self.crypto.subtle.deriveKey(
       { name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(32), info: new TextEncoder().encode('cypherlink-v1') },
       base,
       { name: 'AES-GCM', length: 256 },
@@ -86,7 +91,7 @@ class CypherlinkCrypto {
 }
 
 // ============ SIGNALING ============
-function connectSignaling(group, nick, existingPeers, onSignal) {
+function connectSignaling(group, nick, onSignal) {
   return new Promise((resolve, reject) => {
     signalingWs = new WebSocket(SIGNALING_URL);
 
@@ -119,7 +124,7 @@ function sendSignal(msg) {
 
 // ============ WEBRTC MESH ============
 function createPeerConnection(remotePeerId) {
-  const pc = new RTCPeerConnection({ iceServers: STUN_SERVERS });
+  const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
   const dc = pc.createDataChannel('cypherlink', { ordered: true });
 
   dc.onopen = () => {
@@ -158,6 +163,14 @@ function createPeerConnection(remotePeerId) {
     }
   };
 
+  // Handle remote video tracks
+  pc.ontrack = (event) => {
+    const remotePeerId2 = Object.keys(peers).find(pid => peers[pid].pc === pc);
+    if (remotePeerId2) {
+      showRemoteVideo(remotePeerId2, event.streams[0]);
+    }
+  };
+
   return { pc, dc };
 }
 
@@ -173,7 +186,6 @@ async function createOffer(remotePeerId, remoteNickname) {
 
 async function handleIncomingSignal(msg) {
   if (msg.type === 'peer_joined') {
-    // New peer joined — they will offer to us, we just wait
     console.log(`[Cypherlink] ${msg.nickname} (${msg.peer_id}) joined`);
     appendMessage(null, null, false, `${msg.nickname} joined the group`);
 
@@ -184,8 +196,6 @@ async function handleIncomingSignal(msg) {
   } else if (msg.type === 'sdp') {
     let peer = peers[msg.from];
 
-    // If we don't know this peer yet (they joined and offered to us),
-    // create a passive peer connection for them
     if (!peer && msg.sdp.type === 'offer') {
       const { pc, dc } = createPeerConnection(msg.from);
       peers[msg.from] = { pc, dc, nickname: 'unknown' };
@@ -200,16 +210,14 @@ async function handleIncomingSignal(msg) {
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       sendSignal({ type: 'sdp', to: msg.from, sdp: pc.localDescription });
-    }   
+    }
 
   } else if (msg.type === 'ice') {
     const peer = peers[msg.from];
     if (peer) {
       try {
         await peer.pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
-      } catch (e) {
-        // Ignore duplicate/late candidates
-      }
+      } catch (e) {}
     }
   }
 }
@@ -217,7 +225,8 @@ async function handleIncomingSignal(msg) {
 function removePeer(peerId) {
   if (peers[peerId]) {
     peers[peerId].pc.close();
-    if (peers[peerId].videoEl) peers[peerId].videoEl.remove();
+    const tile = document.getElementById(`video-${peerId}`);
+    if (tile) tile.remove();
     delete peers[peerId];
     updatePeerCount();
   }
@@ -230,7 +239,6 @@ function updatePeerCount() {
 
 // ============ VIDEO ============
 async function handleVideoRequest(remotePeerId) {
-  // They want to see our camera
   if (!localStream) {
     try {
       localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -239,7 +247,6 @@ async function handleVideoRequest(remotePeerId) {
       return;
     }
   }
-  // Add tracks to the peer connection
   const peer = peers[remotePeerId];
   if (peer) {
     localStream.getTracks().forEach(track => {
@@ -257,39 +264,34 @@ function stopVideoFor(remotePeerId) {
       }
     });
   }
+  const tile = document.getElementById(`video-${remotePeerId}`);
+  if (tile) tile.remove();
 }
 
 function toggleVideo() {
   const btn = document.getElementById('video-btn');
   if (localStream) {
-    // Stop sharing
     localStream.getTracks().forEach(t => t.stop());
     localStream = null;
     btn.classList.remove('active');
     btn.textContent = 'CAM';
-    // Tell all peers to stop
     for (const [pid, peer] of Object.entries(peers)) {
       if (peer.dc && peer.dc.readyState === 'open') {
         peer.dc.send(JSON.stringify({ type: 'video_stop' }));
       }
     }
-    // Remove our local video
-    const myVideo = document.getElementById('my-video');
-    if (myVideo) myVideo.remove();
+    const myTile = document.getElementById('my-video-tile');
+    if (myTile) myTile.remove();
   } else {
-    // Start sharing
     navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
       localStream = stream;
       btn.classList.add('active');
       btn.textContent = 'STOP';
-      // Show local preview
       showLocalVideo(stream);
-      // Ask all peers to show our video
       for (const [pid, peer] of Object.entries(peers)) {
         if (peer.dc && peer.dc.readyState === 'open') {
           peer.dc.send(JSON.stringify({ type: 'video_request' }));
         }
-        // Add tracks
         stream.getTracks().forEach(track => {
           peer.pc.addTrack(track, stream);
         });
@@ -306,7 +308,6 @@ function showLocalVideo(stream) {
     tile.className = 'video-tile';
     tile.id = 'my-video-tile';
     const video = document.createElement('video');
-    video.id = 'my-video';
     video.autoplay = true;
     video.muted = true;
     video.playsInline = true;
@@ -317,8 +318,7 @@ function showLocalVideo(stream) {
     tile.appendChild(name);
     grid.prepend(tile);
   }
-  const video = tile.querySelector('video');
-  video.srcObject = stream;
+  tile.querySelector('video').srcObject = stream;
 }
 
 function showRemoteVideo(remotePeerId, stream) {
@@ -350,7 +350,6 @@ async function sendMessage() {
 
   appendMessage(nickname, text, true);
 
-  // Send to all connected peers
   for (const [pid, peer] of Object.entries(peers)) {
     if (peer.dc && peer.dc.readyState === 'open') {
       try {
@@ -427,10 +426,8 @@ document.getElementById('join-btn').addEventListener('click', async () => {
     document.getElementById('group-name').textContent = `#${groupName}`;
     document.getElementById('user-name').textContent = nickname;
 
-    // Connect to signaling
-    const existingPeers = await connectSignaling(groupName, nickname, [], handleIncomingSignal);
+    const existingPeers = await connectSignaling(groupName, nickname, handleIncomingSignal);
 
-    // Create WebRTC connection to each existing peer
     for (const p of existingPeers) {
       await createOffer(p.peer_id, p.nickname);
     }
@@ -449,7 +446,7 @@ document.getElementById('msg-input').addEventListener('keydown', e => {
 });
 document.getElementById('video-btn').addEventListener('click', toggleVideo);
 
-// ============ CLEANUP ON EXIT ============
+// ============ CLEANUP ============
 window.addEventListener('beforeunload', () => {
   sendSignal({ type: 'leave' });
   for (const pid of Object.keys(peers)) removePeer(pid);

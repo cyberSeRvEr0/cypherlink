@@ -47,8 +47,14 @@ export async function createNode(groupName) {
       }),
     },
   });
-  
-  await node.services.dht.bootstrap();   
+
+  // Dial bootstrap nodes to join the DHT network
+  const { multiaddr } = await import('@multiformats/multiaddr');
+  for (const addr of BOOTSTRAP_NODES) {
+    try {
+      await node.dial(multiaddr(addr));
+    } catch (e) {}
+  }    
 
   const topic = `cypherlink/${groupName}`;
   await node.services.pubsub.join(topic);

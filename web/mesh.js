@@ -10,7 +10,7 @@ import { gossipsub } from '@chainsafe/libp2p-gossipsub';
 import { noise } from '@chainsafe/libp2p-noise';
 import { yamux } from '@chainsafe/libp2p-yamux';
 import { identify } from '@libp2p/identify';
-import { KadDHT } from '@libp2p/kad-dht';
+import { kadDHT } from '@libp2p/kad-dht';
 import { ping } from '@libp2p/ping';
 import { peerIdFromString } from '@libp2p/peer-id';
 
@@ -41,13 +41,13 @@ export async function createNode(groupName) {
       pubsub: gossipsub({
         allowPublishToOwnTopic: true,
       }),
-      dht: () => new KadDHT({
+      dht: () => new kadDHT({
         kBucketSize: 20,
         clientMode: false,
       }),
     },
   });
-  node.services.dht.registrar = node.services.identify;
+  
   await node.services.dht.bootstrap();   
 
   const topic = `cypherlink/${groupName}`;

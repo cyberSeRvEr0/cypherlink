@@ -65842,13 +65842,16 @@ async function createNode(groupName2) {
     }
     if (node._onMessage) node._onMessage(data, senderId);
   });
-  const hello = {
-    type: "hello",
-    from: node.peerId.id,
-    nickname: "",
-    ts: Date.now()
-  };
-  await node.services.pubsub.publish(topic, new TextEncoder().encode(JSON.stringify(hello)));
+  try {
+    const hello = {
+      type: "hello",
+      from: node.peerId.id,
+      nickname: "",
+      ts: Date.now()
+    };
+    await node.services.pubsub.publish(topic, new TextEncoder().encode(JSON.stringify(hello)));
+  } catch (e) {
+  }
   return { node, topic };
 }
 function setMessageHandler(node, handler) {
@@ -65857,17 +65860,23 @@ function setMessageHandler(node, handler) {
 function setPeerFoundHandler(node, handler) {
   node._onPeerFound = handler;
 }
-function sendMessage(node, topic, payload) {
-  return node.services.pubsub.publish(topic, new TextEncoder().encode(JSON.stringify(payload)));
+async function sendMessage(node, topic, payload) {
+  try {
+    return await node.services.pubsub.publish(topic, new TextEncoder().encode(JSON.stringify(payload)));
+  } catch (e) {
+  }
 }
-function updateNickname(node, topic, nickname2) {
+async function updateNickname(node, topic, nickname2) {
   const msg = {
     type: "hello",
     from: node.peerId.id,
     nickname: nickname2,
     ts: Date.now()
   };
-  return node.services.pubsub.publish(topic, new TextEncoder().encode(JSON.stringify(msg)));
+  try {
+    return await node.services.pubsub.publish(topic, new TextEncoder().encode(JSON.stringify(msg)));
+  } catch (e) {
+  }
 }
 function stopNode(node) {
   node.stop();

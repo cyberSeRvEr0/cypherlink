@@ -38,14 +38,11 @@ export async function createNode(groupName) {
   const topic = `cypherlink/${groupName}`;
   await node.services.pubsub.join(topic);
 
-  // Track discovered peers
   node._peers = {};
 
-  // Listen for all messages on this topic
   node.services.pubsub.subscribe(topic, (msg) => {
     const data = JSON.parse(new TextDecoder().decode(msg.data));
 
-    // Track sender as a known peer
     const senderId = msg.from ? (msg.from.toString ? msg.from.toString() : msg.from) : null;
     if (senderId && senderId !== node.peerId.id) {
       if (!node._peers[senderId]) {
@@ -57,14 +54,17 @@ export async function createNode(groupName) {
     if (node._onMessage) node._onMessage(data, senderId);
   });
 
-  // Announce ourselves to the group
-  const hello = {
-    type: 'hello',
-    from: node.peerId.id,
-    nickname: '',
-    ts: Date.now()
-  };
-  await node.services.pubsub.publish(topic, new TextEncoder().encode(JSON.stringify(hello)));
+  try {
+    const hello = {
+      type: 'hello',
+      from: node.peerId.id,
+      nickname: '',
+      ts: Date.now()
+    };
+    await node.services.pubsub.publish(topic, new TextEncoder().encode(JSON.stringify(hello)));
+  } catch (e) {
+    // No one else in group yet
+  }
 
   return { node, topic };
 }
@@ -77,22 +77,30 @@ export function setPeerFoundHandler(node, handler) {
   node._onPeerFound = handler;
 }
 
-export function sendMessage(node, topic, payload) {
-  return node.services.pubsub.publish(topic, new TextEncoder().encode(JSON.stringify(payload)));
+export async function sendMessage(node, topic, payload) {
+  try {
+    return await node.services.pubsub.publish(topic, new TextEncoder().encode(JSON.stringify(payload)));
+  } catch (e) {
+    // No peers subscribed yet
+  }
 }
 
 export function getPeers(node) {
   return node._peers || {};
 }
 
-export function updateNickname(node, topic, nickname) {
+export async function updateNickname(node, topic, nickname) {
   const msg = {
     type: 'hello',
     from: node.peerId.id,
     nickname,
     ts: Date.now()
   };
-  return node.services.pubsub.publish(topic, new TextEncoder().encode(JSON.stringify(msg)));
+  try {
+    return await node.services.pubsub.publish(topic, new TextEncoder().encode(JSON.stringify(msg)));
+  } catch (e) {
+    // No peers yet
+  }
 }
 
 export function stopNode(node) {

@@ -47,8 +47,8 @@ export async function createNode(groupName) {
       }),
     },
   });
-
-  await node.services.dht.bootstrap();
+  node.services.dht.registrar = node.services.identify;
+  await node.services.dht.bootstrap();   
 
   const topic = `cypherlink/${groupName}`;
   await node.services.pubsub.join(topic);

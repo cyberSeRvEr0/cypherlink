@@ -117425,6 +117425,7 @@ async function createNode(groupName2) {
       })
     }
   });
+  node.services.dht.registrar = node.services.identify;
   await node.services.dht.bootstrap();
   const topic = `cypherlink/${groupName2}`;
   await node.services.pubsub.join(topic);

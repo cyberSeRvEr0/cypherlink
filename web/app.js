@@ -5,14 +5,9 @@
 
 // ============ CONFIG ============
 const ICE_SERVERS = [
-  {
-    urls: [
-      'stun:' + location.hostname + ':3478',
-      'turn:' + location.hostname + ':3478',
-      'stun:stun.l.google.com:19302'
-    ]
-  }
-];   
+  { urls: 'stun:' + location.hostname + ':3478' },
+  { urls: 'stun:stun.l.google.com:19302' }
+];     
 
 const SIGNALING_URL = 'ws://' + location.hostname + ':9001';
 const MAX_MEMBERS = 100;

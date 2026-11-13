@@ -36,8 +36,7 @@ if %errorlevel% neq 0 (
 
 :: 3. Install dependencies
 echo [3/4] Installing dependencies...
-python3 -m venv .venv
-.venv/bin/pip install -r server/requirements.txt -q   
+pip install -r server\requirements.txt -q
 call npm install --silent
 echo       Dependencies installed ✓
 

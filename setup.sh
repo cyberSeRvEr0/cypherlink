@@ -8,9 +8,9 @@ echo ""
 
 # --- 1. Check Python ---
 if ! command -v python3 &>/dev/null; then
-    echo "[1/5] Installing Python 3..."
+    echo "[1/3] Installing Python 3..."
     if command -v apt &>/dev/null; then
-        sudo apt update && sudo apt install -y python3 python3-pip python3-venv python3-full   
+        sudo apt update && sudo apt install -y python3 python3-pip python3-venv python3-full
     elif command -v brew &>/dev/null; then
         brew install python3
     else
@@ -18,52 +18,32 @@ if ! command -v python3 &>/dev/null; then
         exit 1
     fi
 else
-    echo "[1/5] Python 3 found ✓"
+    echo "[1/3] Python 3 found ✓"
 fi
 
-# --- 2. Check Node.js ---
-if ! command -v node &>/dev/null; then
-    echo "[2/5] Installing Node.js..."
-    if command -v apt &>/dev/null; then
-        curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-        sudo apt install -y nodejs
-    elif command -v brew &>/dev/null; then
-        brew install node
-    else
-        echo "ERROR: Install Node.js 18+ manually."
-        exit 1
-    fi
-else
-    echo "[2/5] Node.js found ✓"
-fi
-
-# --- 3. Create venv + install Python deps ---
-echo "[3/5] Installing Python dependencies..."
-python3 -m venv .venv
+# --- 2. Install dependencies ---
+echo "[2/3] Installing dependencies..."
+python3 -m venv .venv 2>/dev/null || true
 .venv/bin/pip install -r server/requirements.txt -q
 echo "      Done ✓"
 
-# --- 4. Install Node deps ---
-echo "[4/5] Installing Node dependencies..."
-npm install --silent
-echo "      Done ✓"
+# --- 3. Start everything ---
+echo "[3/3] Starting Cypherlink..."
 
-# --- 5. Start everything ---
-echo "[5/5] Starting Cypherlink..."
-
-# Kill any previous instance
+# Kill previous instance
 pkill -f "cypherlink/server.py" 2>/dev/null || true
 pkill -f "http.server 3000" 2>/dev/null || true
 sleep 1
 
-# Start relay server in background
+# Start signaling server
 .venv/bin/python server/server.py &
 SERVER_PID=$!
-echo "      Relay running (PID $SERVER_PID)"
+echo "      Signaling: ws://localhost:9001"
 
-# Serve web files
+# Serve web page
 python3 -m http.server 3000 --directory web &
 WEB_PID=$!
+echo "      Web:       http://localhost:3000"
 
 sleep 1
 
@@ -77,12 +57,13 @@ fi
 echo ""
 echo "══════════════════════════════════════"
 echo "  Cypherlink is running!"
-echo "  Browser: http://localhost:3000"
-echo "  Relay:   ws://localhost:9001"
 echo ""
-echo "  To stop:  kill $SERVER_PID $WEB_PID"
+echo "  Open http://localhost:3000"
+echo "  For 2 users: open a 2nd browser/incognito"
+echo "  Both join same group + key → P2P chat"
+echo ""
+echo "  Stop: Ctrl+C"
 echo "══════════════════════════════════════"
 
-# Keep script alive so Ctrl+C stops everything
 trap "kill $SERVER_PID $WEB_PID 2>/dev/null; exit" INT TERM
 wait   

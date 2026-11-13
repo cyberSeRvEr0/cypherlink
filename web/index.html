@@ -2,37 +2,48 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cypherlink</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <canvas id="matrix"></canvas>
 
-  <div id="overlay">
-    <div id="header">
-      <span id="group-name">CYIPHERLINK</span>
-      <span id="user-name"></span>
-    </div>
-    <div id="chat"></div>
-    <div id="input-row">
-      <input id="msg-input" type="text" placeholder="Type a message..." autocomplete="off" />
-      <button id="send-btn">Send</button>
-    </div>
-  </div>
-
-  <!-- Join screen -->
+  <!-- Join Screen -->
   <div id="join-screen">
     <h1>CYIPHERLINK</h1>
-    <label>Group name:</label>
-    <input id="join-group" type="text" />
-    <label>Invite key:</label>
-    <input id="join-key" type="text" />
-    <label>Your nickname:</label>
-    <input id="join-nick" type="text" />
-    <button id="join-btn">Enter</button>
-    <p id="join-error" class="error"></p>
+    <p class="subtitle">Encrypted P2P. No trace. No server sees your data.</p>
+    <div class="form">
+      <label>Group</label>
+      <input id="join-group" type="text" placeholder="group name" autocomplete="off" />
+      <label>Invite Key</label>
+      <input id="join-key" type="text" placeholder="key" autocomplete="off" />
+      <label>Nickname</label>
+      <input id="join-nick" type="text" placeholder="your name" autocomplete="off" />
+      <button id="join-btn">ENTER</button>
+      <p id="join-error" class="error"></p>
+    </div>
   </div>
 
-  <script type="module" src="bundle.js"></script>
+  <!-- Chat Screen -->
+  <div id="chat-screen" style="display:none">
+    <div id="header">
+      <span id="group-name"></span>
+      <span id="peer-count"></span>
+      <span id="user-name"></span>
+    </div>
+
+    <div id="video-grid"></div>
+
+    <div id="chat"></div>
+
+    <div id="input-row">
+      <input id="msg-input" type="text" placeholder="Type message..." autocomplete="off" />
+      <button id="video-btn" title="Share camera">CAM</button>
+      <button id="send-btn">SEND</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
 </body>
 </html>   

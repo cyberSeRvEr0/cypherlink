@@ -40,6 +40,11 @@ const inputEl = document.getElementById('msg-input');
 const seenMessages = new Set(); // For ephemeral ACK tracking
 
 // --- Join ---
+document.querySelectorAll('#join-screen input').forEach(input => {
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('join-btn').click();
+  });
+});   
 document.getElementById('join-btn').addEventListener('click', async () => {
   groupName = document.getElementById('join-group').value.trim();
   const inviteKey = document.getElementById('join-key').value.trim();

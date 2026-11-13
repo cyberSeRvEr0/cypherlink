@@ -8,62 +8,60 @@ echo ""
 
 # --- 1. Check Python ---
 if ! command -v python3 &>/dev/null; then
-    echo "[1/4] Installing Python 3..."
+    echo "[1/5] Installing Python 3..."
     if command -v apt &>/dev/null; then
-        sudo apt update && sudo apt install -y python3 python3-pip
+        sudo apt update && sudo apt install -y python3 python3-pip python3-venv
     elif command -v brew &>/dev/null; then
         brew install python3
     else
-        echo "ERROR: Cannot install Python automatically. Install Python 3.10+ manually."
+        echo "ERROR: Install Python 3.10+ manually."
         exit 1
     fi
 else
-    echo "[1/4] Python 3 found ✓"
+    echo "[1/5] Python 3 found ✓"
 fi
 
 # --- 2. Check Node.js ---
 if ! command -v node &>/dev/null; then
-    echo "[2/4] Installing Node.js..."
+    echo "[2/5] Installing Node.js..."
     if command -v apt &>/dev/null; then
         curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
         sudo apt install -y nodejs
     elif command -v brew &>/dev/null; then
         brew install node
     else
-        echo "ERROR: Cannot install Node.js automatically. Install Node 18+ manually."
+        echo "ERROR: Install Node.js 18+ manually."
         exit 1
     fi
 else
-    echo "[2/4] Node.js found ✓"
+    echo "[2/5] Node.js found ✓"
 fi
 
-# --- 3. Install dependencies ---
-echo "[3/4] Installing dependencies..."
-pip3 install -r server/requirements.txt -q
-npm install --silent
-echo "      Dependencies installed ✓"
+# --- 3. Create venv + install Python deps ---
+echo "[3/5] Installing Python dependencies..."
+python3 -m venv .venv
+.venv/bin/pip install -r server/requirements.txt -q
+echo "      Done ✓"
 
-# --- 4. Start server + open browser ---
-echo "[4/4] Starting Cypherlink..."
+# --- 4. Install Node deps ---
+echo "[4/5] Installing Node dependencies..."
+npm install --silent
+echo "      Done ✓"
+
+# --- 5. Start everything ---
+echo "[5/5] Starting Cypherlink..."
 
 # Kill any previous instance
 pkill -f "cypherlink/server.py" 2>/dev/null || true
+pkill -f "http.server 3000" 2>/dev/null || true
 sleep 1
 
 # Start relay server in background
-python3 server/server.py &
+.venv/bin/python server/server.py &
 SERVER_PID=$!
-echo "      Server running (PID $SERVER_PID)"
+echo "      Relay running (PID $SERVER_PID)"
 
-# Wait for server to be ready
-for i in {1..10}; do
-    if curl -s http://localhost:3000 > /dev/null 2>&1; then
-        break
-    fi
-    sleep 0.5
-done
-
-# Serve web files + open browser
+# Serve web files
 python3 -m http.server 3000 --directory web &
 WEB_PID=$!
 

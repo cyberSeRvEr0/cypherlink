@@ -1230,7 +1230,7 @@ var require_buffer = __commonJS({
             'The "string" argument must be of type string. Received type number'
           );
         }
-        return allocUnsafe20(arg);
+        return allocUnsafe21(arg);
       }
       return from39(arg, encodingOrOffset, length28);
     }
@@ -1283,7 +1283,7 @@ var require_buffer = __commonJS({
         throw new RangeError('The value "' + size + '" is invalid for option "size"');
       }
     }
-    function alloc19(size, fill, encoding) {
+    function alloc20(size, fill, encoding) {
       assertSize(size);
       if (size <= 0) {
         return createBuffer(size);
@@ -1294,17 +1294,17 @@ var require_buffer = __commonJS({
       return createBuffer(size);
     }
     Buffer2.alloc = function(size, fill, encoding) {
-      return alloc19(size, fill, encoding);
+      return alloc20(size, fill, encoding);
     };
-    function allocUnsafe20(size) {
+    function allocUnsafe21(size) {
       assertSize(size);
       return createBuffer(size < 0 ? 0 : checked(size) | 0);
     }
     Buffer2.allocUnsafe = function(size) {
-      return allocUnsafe20(size);
+      return allocUnsafe21(size);
     };
     Buffer2.allocUnsafeSlow = function(size) {
-      return allocUnsafe20(size);
+      return allocUnsafe21(size);
     };
     function fromString36(string20, encoding) {
       if (typeof encoding !== "string" || encoding === "") {
@@ -1429,7 +1429,7 @@ var require_buffer = __commonJS({
           return false;
       }
     };
-    Buffer2.concat = function concat15(list, length28) {
+    Buffer2.concat = function concat16(list, length28) {
       if (!Array.isArray(list)) {
         throw new TypeError('"list" argument must be an Array of Buffers');
       }
@@ -1604,7 +1604,7 @@ var require_buffer = __commonJS({
       return slowToString.apply(this, arguments);
     };
     Buffer2.prototype.toLocaleString = Buffer2.prototype.toString;
-    Buffer2.prototype.equals = function equals54(b) {
+    Buffer2.prototype.equals = function equals55(b) {
       if (!Buffer2.isBuffer(b)) throw new TypeError("Argument must be a Buffer");
       if (this === b) return true;
       return Buffer2.compare(this, b) === 0;
@@ -46262,7 +46262,7 @@ var src_default4 = drain;
 
 // node_modules/it-peekable/dist/src/index.js
 function peekable(iterable) {
-  const [iterator, symbol23] = iterable[Symbol.asyncIterator] != null ? [iterable[Symbol.asyncIterator](), Symbol.asyncIterator] : [iterable[Symbol.iterator](), Symbol.iterator];
+  const [iterator, symbol24] = iterable[Symbol.asyncIterator] != null ? [iterable[Symbol.asyncIterator](), Symbol.asyncIterator] : [iterable[Symbol.iterator](), Symbol.iterator];
   const queue = [];
   return {
     peek: () => {
@@ -46280,7 +46280,7 @@ function peekable(iterable) {
       }
       return iterator.next();
     },
-    [symbol23]() {
+    [symbol24]() {
       return this;
     }
   };
@@ -47527,15 +47527,15 @@ function defaultComponents(init = {}) {
   return proxy;
 }
 function checkServiceDependencies(components) {
-  const serviceCapabilities8 = {};
+  const serviceCapabilities9 = {};
   for (const service of Object.values(components.components)) {
     for (const capability of getServiceCapabilities(service)) {
-      serviceCapabilities8[capability] = true;
+      serviceCapabilities9[capability] = true;
     }
   }
   for (const service of Object.values(components.components)) {
     for (const capability of getServiceDependencies(service)) {
-      if (serviceCapabilities8[capability] !== true) {
+      if (serviceCapabilities9[capability] !== true) {
         throw new UnmetServiceDependenciesError(`Service "${getServiceName(service)}" required capability "${capability}" but it was not provided by any component, you may need to add additional configuration when creating your node.`);
       }
     }
@@ -116766,6 +116766,637 @@ var KadDHT2 = class extends DualKadDHT {
   }
 };
 
+// node_modules/@libp2p/ping/node_modules/@libp2p/interface/dist/src/errors.js
+var ProtocolError2 = class extends Error {
+  static name = "ProtocolError";
+  constructor(message9 = "Protocol error") {
+    super(message9);
+    this.name = "ProtocolError";
+  }
+};
+var TimeoutError5 = class extends Error {
+  static name = "TimeoutError";
+  constructor(message9 = "Timed out") {
+    super(message9);
+    this.name = "TimeoutError";
+  }
+};
+
+// node_modules/@libp2p/ping/node_modules/@libp2p/interface/dist/src/index.js
+var serviceCapabilities8 = Symbol.for("@libp2p/service-capabilities");
+var serviceDependencies8 = Symbol.for("@libp2p/service-dependencies");
+
+// node_modules/@libp2p/ping/node_modules/uint8arrays/dist/src/alloc.js
+function alloc19(size = 0) {
+  return new Uint8Array(size);
+}
+function allocUnsafe20(size = 0) {
+  return new Uint8Array(size);
+}
+
+// node_modules/@libp2p/ping/node_modules/uint8arrays/dist/src/util/as-uint8array.js
+function isByteArrayWithArrayBuffer26(b) {
+  return b?.buffer instanceof ArrayBuffer;
+}
+function asUint8Array16(buf) {
+  if (isByteArrayWithArrayBuffer26(buf)) {
+    return buf;
+  }
+  const b = buf.slice();
+  return new Uint8Array(b.buffer, 0, b.byteLength);
+}
+
+// node_modules/@libp2p/ping/node_modules/uint8arrays/dist/src/concat.js
+function concat15(arrays, length28) {
+  if (length28 == null) {
+    length28 = arrays.reduce((acc, curr) => acc + curr.length, 0);
+  }
+  const output = allocUnsafe20(length28);
+  let offset = 0;
+  for (const arr of arrays) {
+    output.set(arr, offset);
+    offset += arr.length;
+  }
+  return asUint8Array16(output);
+}
+
+// node_modules/@libp2p/ping/node_modules/uint8arrays/dist/src/equals.js
+function equals54(a, b) {
+  if (a === b) {
+    return true;
+  }
+  if (a.byteLength !== b.byteLength) {
+    return false;
+  }
+  for (let i = 0; i < a.byteLength; i++) {
+    if (a[i] !== b[i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// node_modules/@libp2p/ping/node_modules/uint8arraylist/dist/src/index.js
+var symbol23 = Symbol.for("@achingbrain/uint8arraylist");
+function findBufAndOffset11(bufs, index) {
+  if (index == null || index < 0) {
+    throw new RangeError("index is out of bounds");
+  }
+  let offset = 0;
+  for (const buf of bufs) {
+    const bufEnd = offset + buf.byteLength;
+    if (index < bufEnd) {
+      return {
+        buf,
+        index: index - offset
+      };
+    }
+    offset = bufEnd;
+  }
+  throw new RangeError("index is out of bounds");
+}
+function isUint8ArrayList11(value3) {
+  return Boolean(value3?.[symbol23]);
+}
+var Uint8ArrayList11 = class _Uint8ArrayList {
+  bufs;
+  length;
+  [symbol23] = true;
+  constructor(...data) {
+    this.bufs = [];
+    this.length = 0;
+    if (data.length > 0) {
+      this.appendAll(data);
+    }
+  }
+  *[Symbol.iterator]() {
+    yield* this.bufs;
+  }
+  get byteLength() {
+    return this.length;
+  }
+  /**
+   * Add one or more `bufs` to the end of this Uint8ArrayList
+   */
+  append(...bufs) {
+    this.appendAll(bufs);
+  }
+  /**
+   * Add all `bufs` to the end of this Uint8ArrayList
+   */
+  appendAll(bufs) {
+    let length28 = 0;
+    for (const buf of bufs) {
+      if (buf instanceof Uint8Array) {
+        length28 += buf.byteLength;
+        this.bufs.push(buf);
+      } else if (isUint8ArrayList11(buf)) {
+        length28 += buf.byteLength;
+        for (const chunk of buf.bufs) {
+          this.bufs.push(chunk);
+        }
+      } else {
+        throw new Error("Could not append value, must be an Uint8Array or a Uint8ArrayList");
+      }
+    }
+    this.length += length28;
+  }
+  /**
+   * Add one or more `bufs` to the start of this Uint8ArrayList
+   */
+  prepend(...bufs) {
+    this.prependAll(bufs);
+  }
+  /**
+   * Add all `bufs` to the start of this Uint8ArrayList
+   */
+  prependAll(bufs) {
+    let length28 = 0;
+    for (const buf of bufs.reverse()) {
+      if (buf instanceof Uint8Array) {
+        length28 += buf.byteLength;
+        this.bufs.unshift(buf);
+      } else if (isUint8ArrayList11(buf)) {
+        length28 += buf.byteLength;
+        this.bufs.unshift(...buf.bufs);
+      } else {
+        throw new Error("Could not prepend value, must be an Uint8Array or a Uint8ArrayList");
+      }
+    }
+    this.length += length28;
+  }
+  /**
+   * Read the value at `index`
+   */
+  get(index) {
+    const res = findBufAndOffset11(this.bufs, index);
+    return res.buf[res.index];
+  }
+  /**
+   * Set the value at `index` to `value`
+   */
+  set(index, value3) {
+    const res = findBufAndOffset11(this.bufs, index);
+    res.buf[res.index] = value3;
+  }
+  /**
+   * Copy bytes from `buf` to the index specified by `offset`
+   */
+  write(buf, offset = 0) {
+    if (buf instanceof Uint8Array) {
+      for (let i = 0; i < buf.length; i++) {
+        this.set(offset + i, buf[i]);
+      }
+    } else if (isUint8ArrayList11(buf)) {
+      for (let i = 0; i < buf.length; i++) {
+        this.set(offset + i, buf.get(i));
+      }
+    } else {
+      throw new Error("Could not write value, must be an Uint8Array or a Uint8ArrayList");
+    }
+  }
+  /**
+   * Remove bytes from the front of the pool
+   */
+  consume(bytes3) {
+    bytes3 = Math.trunc(bytes3);
+    if (Number.isNaN(bytes3) || bytes3 <= 0) {
+      return;
+    }
+    if (bytes3 === this.byteLength) {
+      this.bufs = [];
+      this.length = 0;
+      return;
+    }
+    while (this.bufs.length > 0) {
+      if (bytes3 >= this.bufs[0].byteLength) {
+        bytes3 -= this.bufs[0].byteLength;
+        this.length -= this.bufs[0].byteLength;
+        this.bufs.shift();
+      } else {
+        this.bufs[0] = this.bufs[0].subarray(bytes3);
+        this.length -= bytes3;
+        break;
+      }
+    }
+  }
+  /**
+   * Extracts a section of an array and returns a new array.
+   *
+   * This is a copy operation as it is with Uint8Arrays and Arrays
+   * - note this is different to the behaviour of Node Buffers.
+   */
+  slice(beginInclusive, endExclusive) {
+    const { bufs, length: length28 } = this._subList(beginInclusive, endExclusive);
+    return concat15(bufs, length28);
+  }
+  /**
+   * Returns a section of the array from the given start and end element index.
+   *
+   * This is a no-copy operation where the data extracted data comes from a
+   * single Uint8Array internally, otherwise it is a copy operation.
+   */
+  subarray(beginInclusive, endExclusive) {
+    const { bufs, length: length28 } = this._subList(beginInclusive, endExclusive);
+    if (bufs.length === 1) {
+      return bufs[0];
+    }
+    return concat15(bufs, length28);
+  }
+  /**
+   * Returns a new Uint8ArrayList from the given start and end element index.
+   *
+   * This is a no-copy operation.
+   */
+  sublist(beginInclusive, endExclusive) {
+    const { bufs, length: length28 } = this._subList(beginInclusive, endExclusive);
+    const list = new _Uint8ArrayList();
+    list.length = length28;
+    list.bufs = bufs;
+    return list;
+  }
+  _subList(beginInclusive, endExclusive) {
+    beginInclusive = beginInclusive ?? 0;
+    endExclusive = endExclusive ?? this.length;
+    if (beginInclusive < 0) {
+      beginInclusive = this.length + beginInclusive;
+    }
+    if (endExclusive < 0) {
+      endExclusive = this.length + endExclusive;
+    }
+    if (beginInclusive < 0 || endExclusive > this.length) {
+      throw new RangeError("index is out of bounds");
+    }
+    if (beginInclusive === endExclusive) {
+      return { bufs: [], length: 0 };
+    }
+    if (beginInclusive === 0 && endExclusive === this.length) {
+      return { bufs: [...this.bufs], length: this.length };
+    }
+    const bufs = [];
+    let offset = 0;
+    for (let i = 0; i < this.bufs.length; i++) {
+      const buf = this.bufs[i];
+      const bufStart = offset;
+      const bufEnd = bufStart + buf.byteLength;
+      offset = bufEnd;
+      if (beginInclusive >= bufEnd) {
+        continue;
+      }
+      const sliceStartInBuf = beginInclusive >= bufStart && beginInclusive < bufEnd;
+      const sliceEndsInBuf = endExclusive > bufStart && endExclusive <= bufEnd;
+      if (sliceStartInBuf && sliceEndsInBuf) {
+        if (beginInclusive === bufStart && endExclusive === bufEnd) {
+          bufs.push(buf);
+          break;
+        }
+        const start3 = beginInclusive - bufStart;
+        bufs.push(buf.subarray(start3, start3 + (endExclusive - beginInclusive)));
+        break;
+      }
+      if (sliceStartInBuf) {
+        if (beginInclusive === 0) {
+          bufs.push(buf);
+          continue;
+        }
+        bufs.push(buf.subarray(beginInclusive - bufStart));
+        continue;
+      }
+      if (sliceEndsInBuf) {
+        if (endExclusive === bufEnd) {
+          bufs.push(buf);
+          break;
+        }
+        bufs.push(buf.subarray(0, endExclusive - bufStart));
+        break;
+      }
+      bufs.push(buf);
+    }
+    return { bufs, length: endExclusive - beginInclusive };
+  }
+  indexOf(search, offset = 0) {
+    if (!isUint8ArrayList11(search) && !(search instanceof Uint8Array)) {
+      throw new TypeError('The "value" argument must be a Uint8ArrayList or Uint8Array');
+    }
+    const needle = search instanceof Uint8Array ? search : search.subarray();
+    offset = Number(offset ?? 0);
+    if (isNaN(offset)) {
+      offset = 0;
+    }
+    if (offset < 0) {
+      offset = this.length + offset;
+    }
+    if (offset < 0) {
+      offset = 0;
+    }
+    if (search.length === 0) {
+      return offset > this.length ? this.length : offset;
+    }
+    const M = needle.byteLength;
+    if (M === 0) {
+      throw new TypeError("search must be at least 1 byte long");
+    }
+    const radix = 256;
+    const rightmostPositions = new Int32Array(radix);
+    for (let c = 0; c < radix; c++) {
+      rightmostPositions[c] = -1;
+    }
+    for (let j = 0; j < M; j++) {
+      rightmostPositions[needle[j]] = j;
+    }
+    const right = rightmostPositions;
+    const lastIndex = this.byteLength - needle.byteLength;
+    const lastPatIndex = needle.byteLength - 1;
+    let skip;
+    for (let i = offset; i <= lastIndex; i += skip) {
+      skip = 0;
+      for (let j = lastPatIndex; j >= 0; j--) {
+        const char = this.get(i + j);
+        if (needle[j] !== char) {
+          skip = Math.max(1, j - right[char]);
+          break;
+        }
+      }
+      if (skip === 0) {
+        return i;
+      }
+    }
+    return -1;
+  }
+  getInt8(byteOffset) {
+    const buf = this.subarray(byteOffset, byteOffset + 1);
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    return view.getInt8(0);
+  }
+  setInt8(byteOffset, value3) {
+    const buf = allocUnsafe20(1);
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    view.setInt8(0, value3);
+    this.write(buf, byteOffset);
+  }
+  getInt16(byteOffset, littleEndian) {
+    const buf = this.subarray(byteOffset, byteOffset + 2);
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    return view.getInt16(0, littleEndian);
+  }
+  setInt16(byteOffset, value3, littleEndian) {
+    const buf = alloc19(2);
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    view.setInt16(0, value3, littleEndian);
+    this.write(buf, byteOffset);
+  }
+  getInt32(byteOffset, littleEndian) {
+    const buf = this.subarray(byteOffset, byteOffset + 4);
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    return view.getInt32(0, littleEndian);
+  }
+  setInt32(byteOffset, value3, littleEndian) {
+    const buf = alloc19(4);
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    view.setInt32(0, value3, littleEndian);
+    this.write(buf, byteOffset);
+  }
+  getBigInt64(byteOffset, littleEndian) {
+    const buf = this.subarray(byteOffset, byteOffset + 8);
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    return view.getBigInt64(0, littleEndian);
+  }
+  setBigInt64(byteOffset, value3, littleEndian) {
+    const buf = alloc19(8);
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    view.setBigInt64(0, value3, littleEndian);
+    this.write(buf, byteOffset);
+  }
+  getUint8(byteOffset) {
+    const buf = this.subarray(byteOffset, byteOffset + 1);
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    return view.getUint8(0);
+  }
+  setUint8(byteOffset, value3) {
+    const buf = allocUnsafe20(1);
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    view.setUint8(0, value3);
+    this.write(buf, byteOffset);
+  }
+  getUint16(byteOffset, littleEndian) {
+    const buf = this.subarray(byteOffset, byteOffset + 2);
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    return view.getUint16(0, littleEndian);
+  }
+  setUint16(byteOffset, value3, littleEndian) {
+    const buf = alloc19(2);
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    view.setUint16(0, value3, littleEndian);
+    this.write(buf, byteOffset);
+  }
+  getUint32(byteOffset, littleEndian) {
+    const buf = this.subarray(byteOffset, byteOffset + 4);
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    return view.getUint32(0, littleEndian);
+  }
+  setUint32(byteOffset, value3, littleEndian) {
+    const buf = alloc19(4);
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    view.setUint32(0, value3, littleEndian);
+    this.write(buf, byteOffset);
+  }
+  getBigUint64(byteOffset, littleEndian) {
+    const buf = this.subarray(byteOffset, byteOffset + 8);
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    return view.getBigUint64(0, littleEndian);
+  }
+  setBigUint64(byteOffset, value3, littleEndian) {
+    const buf = alloc19(8);
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    view.setBigUint64(0, value3, littleEndian);
+    this.write(buf, byteOffset);
+  }
+  getFloat32(byteOffset, littleEndian) {
+    const buf = this.subarray(byteOffset, byteOffset + 4);
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    return view.getFloat32(0, littleEndian);
+  }
+  setFloat32(byteOffset, value3, littleEndian) {
+    const buf = alloc19(4);
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    view.setFloat32(0, value3, littleEndian);
+    this.write(buf, byteOffset);
+  }
+  getFloat64(byteOffset, littleEndian) {
+    const buf = this.subarray(byteOffset, byteOffset + 8);
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    return view.getFloat64(0, littleEndian);
+  }
+  setFloat64(byteOffset, value3, littleEndian) {
+    const buf = alloc19(8);
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    view.setFloat64(0, value3, littleEndian);
+    this.write(buf, byteOffset);
+  }
+  equals(other) {
+    if (other == null) {
+      return false;
+    }
+    if (!(other instanceof _Uint8ArrayList)) {
+      return false;
+    }
+    if (other.bufs.length !== this.bufs.length) {
+      return false;
+    }
+    for (let i = 0; i < this.bufs.length; i++) {
+      if (!equals54(this.bufs[i], other.bufs[i])) {
+        return false;
+      }
+    }
+    return true;
+  }
+  /**
+   * Create a Uint8ArrayList from a pre-existing list of Uint8Arrays.  Use this
+   * method if you know the total size of all the Uint8Arrays ahead of time.
+   */
+  static fromUint8Arrays(bufs, length28) {
+    const list = new _Uint8ArrayList();
+    list.bufs = bufs;
+    if (length28 == null) {
+      length28 = bufs.reduce((acc, curr) => acc + curr.byteLength, 0);
+    }
+    list.length = length28;
+    return list;
+  }
+};
+
+// node_modules/@libp2p/ping/dist/src/constants.js
+var PING_LENGTH2 = 32;
+var PROTOCOL_VERSION2 = "1.0.0";
+var PROTOCOL_NAME2 = "ping";
+var PROTOCOL_PREFIX3 = "ipfs";
+var TIMEOUT = 1e4;
+var MAX_INBOUND_STREAMS = 2;
+var MAX_OUTBOUND_STREAMS = 1;
+
+// node_modules/@libp2p/ping/dist/src/ping.js
+var Ping = class {
+  protocol;
+  components;
+  started;
+  timeout;
+  maxInboundStreams;
+  maxOutboundStreams;
+  runOnLimitedConnection;
+  constructor(components, init = {}) {
+    this.components = components;
+    this.started = false;
+    this.protocol = `/${init.protocolPrefix ?? PROTOCOL_PREFIX3}/${PROTOCOL_NAME2}/${PROTOCOL_VERSION2}`;
+    this.timeout = init.timeout ?? TIMEOUT;
+    this.maxInboundStreams = init.maxInboundStreams ?? MAX_INBOUND_STREAMS;
+    this.maxOutboundStreams = init.maxOutboundStreams ?? MAX_OUTBOUND_STREAMS;
+    this.runOnLimitedConnection = init.runOnLimitedConnection ?? true;
+    this.handlePing = this.handlePing.bind(this);
+  }
+  [Symbol.toStringTag] = "@libp2p/ping";
+  [serviceCapabilities8] = [
+    "@libp2p/ping"
+  ];
+  async start() {
+    await this.components.registrar.handle(this.protocol, this.handlePing, {
+      maxInboundStreams: this.maxInboundStreams,
+      maxOutboundStreams: this.maxOutboundStreams,
+      runOnLimitedConnection: this.runOnLimitedConnection
+    });
+    this.started = true;
+  }
+  async stop() {
+    await this.components.registrar.unhandle(this.protocol);
+    this.started = false;
+  }
+  isStarted() {
+    return this.started;
+  }
+  /**
+   * A handler to register with Libp2p to process ping messages
+   */
+  async handlePing(stream, connection) {
+    const log9 = stream.log.newScope("ping");
+    log9.trace("ping from %p", connection.remotePeer);
+    const signal = AbortSignal.timeout(this.timeout);
+    setMaxListeners(Infinity, signal);
+    signal.addEventListener("abort", () => {
+      stream.abort(new TimeoutError5("Ping timed out"));
+    });
+    const start3 = Date.now();
+    for await (const buf of stream) {
+      if (stream.status !== "open") {
+        log9("stream status changed to %s", stream.status);
+        break;
+      }
+      if (!stream.send(buf)) {
+        log9("waiting for stream to drain");
+        await pEvent(stream, "drain", {
+          rejectionEvents: [
+            "close"
+          ],
+          signal
+        });
+        log9("stream drained");
+      }
+    }
+    log9("ping from %p complete in %dms", connection.remotePeer, Date.now() - start3);
+    await stream.close({
+      signal
+    });
+  }
+  /**
+   * Ping a given peer and wait for its response, getting the operation latency.
+   */
+  async ping(peer, options2 = {}) {
+    const data = crypto.getRandomValues(new Uint8Array(PING_LENGTH2));
+    const stream = await this.components.connectionManager.openStream(peer, this.protocol, {
+      runOnLimitedConnection: this.runOnLimitedConnection,
+      ...options2
+    });
+    const log9 = stream.log.newScope("ping");
+    try {
+      const start3 = Date.now();
+      const finished = Promise.withResolvers();
+      const received = new Uint8ArrayList11();
+      const onPong = (evt) => {
+        received.append(evt.data);
+        if (received.byteLength === PING_LENGTH2) {
+          stream.removeEventListener("message", onPong);
+          const rtt = Date.now() - start3;
+          Promise.all([
+            stream.closeRead(options2)
+          ]).then(() => {
+            if (!equals54(data, received.subarray())) {
+              throw new ProtocolError2(`Received wrong ping ack after ${rtt}ms`);
+            } else {
+              finished.resolve(rtt);
+            }
+          }).catch((err) => {
+            stream.abort(err);
+            finished.reject(err);
+          });
+        }
+      };
+      stream.addEventListener("message", onPong);
+      stream.send(data);
+      await stream.close(options2);
+      return await raceSignal(finished.promise, options2.signal);
+    } catch (err) {
+      log9.error("error while pinging %o - %e", peer, err);
+      stream?.abort(err);
+      throw err;
+    } finally {
+      stream?.close();
+    }
+  }
+};
+
+// node_modules/@libp2p/ping/dist/src/index.js
+function ping(init = {}) {
+  return (components) => new Ping(components, init);
+}
+
 // web/mesh.js
 async function createNode(groupName2) {
   const node = await createLibp2p({
@@ -116784,13 +117415,13 @@ async function createNode(groupName2) {
     },
     services: {
       identify: identify(),
+      ping: ping(),
       pubsub: gossipsub({
         allowPublishToOwnTopic: true
       }),
-      dht: new KadDHT2({
+      dht: () => new KadDHT2({
         kBucketSize: 20,
-        validators: {},
-        storage: {}
+        clientMode: false
       })
     }
   });

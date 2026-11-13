@@ -11,6 +11,7 @@ import { noise } from '@chainsafe/libp2p-noise';
 import { yamux } from '@chainsafe/libp2p-yamux';
 import { identify } from '@libp2p/identify';
 import { KadDHT } from '@libp2p/kad-dht';
+import { ping } from '@libp2p/ping';
 import { peerIdFromString } from '@libp2p/peer-id';
 
 const BOOTSTRAP_NODES = [
@@ -36,25 +37,22 @@ export async function createNode(groupName) {
     },
     services: {
       identify: identify(),
+      ping: ping(),
       pubsub: gossipsub({
         allowPublishToOwnTopic: true,
       }),
-      dht: new KadDHT({
+      dht: () => new KadDHT({
         kBucketSize: 20,
-        validators: {},
-        storage: {},
+        clientMode: false,
       }),
     },
   });
 
-  // Join the DHT network
   await node.services.dht.bootstrap();
 
-  // Subscribe to this group's topic
   const topic = `cypherlink/${groupName}`;
   await node.services.pubsub.join(topic);
 
-  // Publish our presence in the DHT
   const dhtKey = new TextEncoder().encode(`cypherlink:group:${groupName}`);
   const peerInfo = {
     id: node.peerId.id,
@@ -63,13 +61,11 @@ export async function createNode(groupName) {
   };
   await node.services.dht.put(dhtKey, new TextEncoder().encode(JSON.stringify(peerInfo)));
 
-  // Listen for messages
   node.services.pubsub.subscribe(topic, (msg) => {
     const data = JSON.parse(new TextDecoder().decode(msg.data));
     if (node._onMessage) node._onMessage(data);
   });
 
-  // Query DHT for existing peers in this group
   const existingPeers = await findGroupPeers(node, groupName);
 
   return { node, topic, existingPeers, myPeerId: node.peerId.id };

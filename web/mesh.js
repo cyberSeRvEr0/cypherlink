@@ -10,11 +10,9 @@ import { gossipsub } from '@chainsafe/libp2p-gossipsub';
 import { noise } from '@chainsafe/libp2p-noise';
 import { yamux } from '@chainsafe/libp2p-yamux';
 import { identify } from '@libp2p/identify';
-import { kadDHT } from '@libp2p/kad-dht';
-import { createEd25519PeerId } from '@libp2p/ed25519';
+import { KadDHT } from '@libp2p/kad-dht';
+import { peerIdFromString } from '@libp2p/peer-id';
 
-// Public libp2p bootstrap nodes (like DNS — they only help the DHT form,
-// they never see your messages, group names, or keys)
 const BOOTSTRAP_NODES = [
   '/dns4/bootstrap.libp2p.io/tcp/443/wss/p2p/QmNnooDu7bfjPFoTZYxMNLWuQJyr1wtgzE931WmXSgRnHhy',
   '/dns4/node.libp2p.io/tcp/443/wss/p2p/QmQCU2EcMqAqQPR2i9bChDtGNJchTbq5TbXJJ16u19uLTa',
@@ -22,10 +20,7 @@ const BOOTSTRAP_NODES = [
 ];
 
 export async function createNode(groupName) {
-  const peerId = await createEd25519PeerId();
-
   const node = await createLibp2p({
-    peerId,
     addresses: {
       listen: ['/webrtc', '/p2p-circuit'],
     },
@@ -44,7 +39,7 @@ export async function createNode(groupName) {
       pubsub: gossipsub({
         allowPublishToOwnTopic: true,
       }),
-      dht: kadDHT({
+      dht: KadDHT({
         kBucketSize: 20,
         validators: {},
         storage: {},
@@ -59,12 +54,12 @@ export async function createNode(groupName) {
   const topic = `cypherlink/${groupName}`;
   await node.services.pubsub.join(topic);
 
-  // Publish our presence in the DHT so others can find us
+  // Publish our presence in the DHT
   const dhtKey = new TextEncoder().encode(`cypherlink:group:${groupName}`);
   const peerInfo = {
-    id: peerId.id,
-    addresses: node.getMultiaddrs(),
-    nickname: '', // will be set externally
+    id: node.peerId.id,
+    addresses: node.getMultiaddrs().map(a => a.toString()),
+    nickname: '',
   };
   await node.services.dht.put(dhtKey, new TextEncoder().encode(JSON.stringify(peerInfo)));
 
@@ -77,7 +72,7 @@ export async function createNode(groupName) {
   // Query DHT for existing peers in this group
   const existingPeers = await findGroupPeers(node, groupName);
 
-  return { node, topic, existingPeers, myPeerId: peerId.id };
+  return { node, topic, existingPeers, myPeerId: node.peerId.id };
 }
 
 async function findGroupPeers(node, groupName) {
@@ -90,16 +85,14 @@ async function findGroupPeers(node, groupName) {
     if (info.id !== node.peerId.id) {
       peers.push(info);
     }
-  } catch (e) {
-    // No one in this group yet — that's fine, we're the first
-  }
+  } catch (e) {}
 
-  // Also try findPeers for more results
   try {
     const found = await node.services.dht.findPeers(dhtKey);
     for (const p of found) {
-      if (p.id !== node.peerId.id && !peers.find(x => x.id === p.id)) {
-        peers.push({ id: p.id, addresses: p.addresses || [] });
+      const id = p.id.toString ? p.id.toString() : p.id;
+      if (id !== node.peerId.id && !peers.find(x => x.id === id)) {
+        peers.push({ id, addresses: p.addresses || [] });
       }
     }
   } catch (e) {}
@@ -116,8 +109,6 @@ export function sendMessage(node, topic, payload) {
 }
 
 export async function connectToPeer(node, peerIdStr) {
-  const { createEd25519PeerId } = await import('@libp2p/ed25519');
-  const { peerIdFromString } = await import('@libp2p/peer-id');
   const targetId = peerIdFromString(peerIdStr);
   await node.dial(targetId);
 }
@@ -126,7 +117,7 @@ export async function updatePresence(node, groupName, nickname) {
   const dhtKey = new TextEncoder().encode(`cypherlink:group:${groupName}`);
   const peerInfo = {
     id: node.peerId.id,
-    addresses: node.getMultiaddrs(),
+    addresses: node.getMultiaddrs().map(a => a.toString()),
     nickname,
   };
   await node.services.dht.put(dhtKey, new TextEncoder().encode(JSON.stringify(peerInfo)));

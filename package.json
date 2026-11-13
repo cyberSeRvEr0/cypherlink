@@ -3,15 +3,17 @@
   "version": "1.0.0",
   "type": "module",
   "dependencies": {
-    "libp2p": "^3.5.1",
-    "@libp2p/webrtc": "^6.0.3",
-    "@libp2p/websockets": "^10.0.1",
-    "@libp2p/circuit-relay-v2": "^4.0.1",
     "@chainsafe/libp2p-gossipsub": "^14.1.2",
     "@chainsafe/libp2p-noise": "^17.0.0",
     "@chainsafe/libp2p-yamux": "^8.0.1",
+    "@libp2p/circuit-relay-v2": "^4.0.1",
     "@libp2p/identify": "^3.0.0",
-    "@libp2p/kad-dht": "^1.0.0"
+    "@libp2p/kad-dht": "^1.0.0",
+    "@libp2p/peer-id": "^6.0.18",
+    "@libp2p/webrtc": "^6.0.3",
+    "@libp2p/websockets": "^10.0.1",
+    "buffer": "^6.0.3",
+    "libp2p": "^3.5.1"
   },
   "devDependencies": {
     "esbuild": "^0.25.0"
@@ -19,4 +21,4 @@
   "scripts": {
     "build": "esbuild web/app.js --bundle --format=esm --platform=browser --outfile=web/bundle.js"
   }
-}   
+}

@@ -1,6 +1,7 @@
 /**
- * Cypherlink DHT mesh — peers find each other via Kademlia DHT.
- * No host. No meeting point. Group name is the discovery key.
+ * Cypherlink mesh — P2P via libp2p WebRTC + GossipSub.
+ * Discovery: peers find each other by joining the same GossipSub topic.
+ * No DHT. No host. No meeting point.
  */
 import { createLibp2p } from 'libp2p';
 import { webRTC } from '@libp2p/webrtc';
@@ -10,15 +11,6 @@ import { gossipsub } from '@chainsafe/libp2p-gossipsub';
 import { noise } from '@chainsafe/libp2p-noise';
 import { yamux } from '@chainsafe/libp2p-yamux';
 import { identify } from '@libp2p/identify';
-import { kadDHT } from '@libp2p/kad-dht';
-import { ping } from '@libp2p/ping';
-import { peerIdFromString } from '@libp2p/peer-id';
-
-const BOOTSTRAP_NODES = [
-  '/dns4/bootstrap.libp2p.io/tcp/443/wss/p2p/QmNnooDu7bfjPFoTZYxMNLWuQJyr1wtgzE931WmXSgRnHhy',
-  '/dns4/node.libp2p.io/tcp/443/wss/p2p/QmQCU2EcMqAqQPR2i9bChDtGNJchTbq5TbXJJ16u19uLTa',
-  '/dns4/bootstrap.libp2p.io/tcp/443/wss/p2p/QmQCU2EcMqAqQPR2i9bChDtGNJchTbq5TbXJJ16u19uLTa'
-];
 
 export async function createNode(groupName) {
   const node = await createLibp2p({
@@ -37,96 +29,70 @@ export async function createNode(groupName) {
     },
     services: {
       identify: identify(),
-      ping: ping(),
       pubsub: gossipsub({
         allowPublishToOwnTopic: true,
-      }),
-      dht: () => new kadDHT({
-        kBucketSize: 20,
-        clientMode: false,
       }),
     },
   });
 
-  // Dial bootstrap nodes to join the DHT network
-  const { multiaddr } = await import('@multiformats/multiaddr');
-  for (const addr of BOOTSTRAP_NODES) {
-    try {
-      await node.dial(multiaddr(addr));
-    } catch (e) {}
-  }    
-
   const topic = `cypherlink/${groupName}`;
   await node.services.pubsub.join(topic);
 
-  const dhtKey = new TextEncoder().encode(`cypherlink:group:${groupName}`);
-  const peerInfo = {
-    id: node.peerId.id,
-    addresses: node.getMultiaddrs().map(a => a.toString()),
-    nickname: '',
-  };
-  await node.services.dht.put(dhtKey, new TextEncoder().encode(JSON.stringify(peerInfo)));
+  // Track discovered peers
+  node._peers = {};
 
+  // Listen for all messages on this topic
   node.services.pubsub.subscribe(topic, (msg) => {
     const data = JSON.parse(new TextDecoder().decode(msg.data));
-    if (node._onMessage) node._onMessage(data);
-  });
 
-  const existingPeers = await findGroupPeers(node, groupName);
-
-  return { node, topic, existingPeers, myPeerId: node.peerId.id };
-}
-
-async function findGroupPeers(node, groupName) {
-  const dhtKey = new TextEncoder().encode(`cypherlink:group:${groupName}`);
-  const peers = [];
-
-  try {
-    const result = await node.services.dht.get(dhtKey);
-    const info = JSON.parse(new TextDecoder().decode(result.value));
-    if (info.id !== node.peerId.id) {
-      peers.push(info);
-    }
-  } catch (e) {}
-
-  try {
-    const found = await node.services.dht.findPeers(dhtKey);
-    for (const p of found) {
-      const id = p.id.toString ? p.id.toString() : p.id;
-      if (id !== node.peerId.id && !peers.find(x => x.id === id)) {
-        peers.push({ id, addresses: p.addresses || [] });
+    // Track sender as a known peer
+    const senderId = msg.from ? (msg.from.toString ? msg.from.toString() : msg.from) : null;
+    if (senderId && senderId !== node.peerId.id) {
+      if (!node._peers[senderId]) {
+        node._peers[senderId] = { id: senderId, nickname: 'unknown', hasCam: false };
+        if (node._onPeerFound) node._onPeerFound(node._peers[senderId]);
       }
     }
-  } catch (e) {}
 
-  return peers;
+    if (node._onMessage) node._onMessage(data, senderId);
+  });
+
+  // Announce ourselves to the group
+  const hello = {
+    type: 'hello',
+    from: node.peerId.id,
+    nickname: '',
+    ts: Date.now()
+  };
+  await node.services.pubsub.publish(topic, new TextEncoder().encode(JSON.stringify(hello)));
+
+  return { node, topic };
 }
 
 export function setMessageHandler(node, handler) {
   node._onMessage = handler;
 }
 
+export function setPeerFoundHandler(node, handler) {
+  node._onPeerFound = handler;
+}
+
 export function sendMessage(node, topic, payload) {
   return node.services.pubsub.publish(topic, new TextEncoder().encode(JSON.stringify(payload)));
 }
 
-export async function connectToPeer(node, peerIdStr) {
-  const targetId = peerIdFromString(peerIdStr);
-  await node.dial(targetId);
+export function getPeers(node) {
+  return node._peers || {};
 }
 
-export async function updatePresence(node, groupName, nickname) {
-  const dhtKey = new TextEncoder().encode(`cypherlink:group:${groupName}`);
-  const peerInfo = {
-    id: node.peerId.id,
-    addresses: node.getMultiaddrs().map(a => a.toString()),
+export function updateNickname(node, topic, nickname) {
+  const msg = {
+    type: 'hello',
+    from: node.peerId.id,
     nickname,
+    ts: Date.now()
   };
-  await node.services.dht.put(dhtKey, new TextEncoder().encode(JSON.stringify(peerInfo)));
-}
-
-export async function discoverPeers(node, groupName) {
-  return findGroupPeers(node, groupName);
+  return node.services.pubsub.publish(topic, new TextEncoder().encode(JSON.stringify(msg)));
 }
 
 export function stopNode(node) {

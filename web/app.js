@@ -1,10 +1,10 @@
 /**
- * Cypherlink — P2P encrypted chat + video via libp2p DHT + WebRTC.
+ * Cypherlink — P2P encrypted chat + video via libp2p GossipSub + WebRTC.
  * No host. No meeting point. Each user is independent.
  */
 
 // ============ IMPORTS ============
-import { createNode, setMessageHandler, sendMessage, connectToPeer, updatePresence, discoverPeers, stopNode } from './mesh.js';
+import { createNode, setMessageHandler, setPeerFoundHandler, sendMessage, updateNickname, stopNode } from './mesh.js';
 
 // ============ CONFIG ============
 const MAX_MEMBERS = 100;
@@ -17,7 +17,6 @@ let meshNode = null;
 let meshTopic = null;
 let localStream = null;
 let lastNick = null, lastTs = 0;
-let connectedPeers = {}; // peerId -> { nickname, stream, hasCam }
 
 // ============ MATRIX RAIN ============
 const canvas = document.getElementById('matrix');
@@ -82,7 +81,7 @@ class CypherlinkCrypto {
 }
 
 // ============ MESSAGE HANDLER ============
-async function handleIncoming(data) {
+async function handleIncoming(data, senderId) {
   if (data.type === 'msg') {
     try {
       const text = await groupCrypto.decrypt(data.iv, data.ct);
@@ -92,36 +91,39 @@ async function handleIncoming(data) {
     } catch (e) {
       console.error('[Cypherlink] Decrypt failed:', e);
     }
-  } else if (data.type === 'cam_on') {
-    if (connectedPeers[data.from]) {
-      connectedPeers[data.from].hasCam = true;
-      connectedPeers[data.from].nickname = data.nickname || 'unknown';
-      updateCamList();
-      // They have camera — ask them to send video to us
-      sendVideoOffer(data.from);
-    }
-  } else if (data.type === 'cam_off') {
-    if (connectedPeers[data.from]) {
-      connectedPeers[data.from].hasCam = false;
-      connectedPeers[data.from].stream = null;
-      const pc = videoPcs[data.from];
-      if (pc) { pc.close(); delete videoPcs[data.from]; }
-      if (activeVideoPeer === data.from) { activeVideoPeer = null; clearCircle(); }
-      updateCamList();
-    }
   } else if (data.type === 'hello') {
-    if (connectedPeers[data.from]) {
-      connectedPeers[data.from].nickname = data.nickname;
+    if (senderId && meshNode._peers[senderId]) {
+      meshNode._peers[senderId].nickname = data.nickname || 'unknown';
       updatePeerCount();
     }
-  } else if (data.type === 'vid_sdp' || data.type === 'vid_ice') {
-    handleVideoSignal(data);
+  } else if (data.type === 'cam_on') {
+    if (senderId && meshNode._peers[senderId]) {
+      meshNode._peers[senderId].hasCam = true;
+      updateCamList();
+      sendVideoOffer(senderId);
+    }
+  } else if (data.type === 'cam_off') {
+    if (senderId && meshNode._peers[senderId]) {
+      meshNode._peers[senderId].hasCam = false;
+      meshNode._peers[senderId].stream = null;
+      const pc = videoPcs[senderId];
+      if (pc) { pc.close(); delete videoPcs[senderId]; }
+      if (activeVideoPeer === senderId) { activeVideoPeer = null; clearCircle(); }
+      updateCamList();
+    }
+  } else if (data.type === 'vid_sdp') {
+    handleVideoSignal(data, senderId);
+  } else if (data.type === 'vid_ice') {
+    const pc = videoPcs[senderId];
+    if (pc) {
+      try { await pc.addIceCandidate(new RTCIceCandidate(data.candidate)); } catch (e) {}
+    }
   }
-}   
+}
 
 // ============ VIDEO (Circle UI) ============
 let activeVideoPeer = null;
-let videoPcs = {}; // peerId -> RTCPeerConnection for media
+let videoPcs = {};
 
 function showVideoInCircle(stream) {
   const video = document.getElementById('circle-video');
@@ -152,7 +154,7 @@ function updateCamList() {
     list.appendChild(btn);
   }
 
-  for (const [pid, peer] of Object.entries(connectedPeers)) {
+  for (const [pid, peer] of Object.entries(meshNode._peers)) {
     if (peer.hasCam && peer.stream) {
       const btn = document.createElement('span');
       btn.className = 'cam-name';
@@ -164,12 +166,11 @@ function updateCamList() {
 
   const circle = document.getElementById('video-circle');
   if (circle) {
-    const hasCam = localStream || Object.values(connectedPeers).some(p => p.hasCam);
+    const hasCam = localStream || Object.values(meshNode._peers).some(p => p.hasCam);
     circle.style.display = hasCam ? 'flex' : 'none';
   }
 }
 
-// Create a separate WebRTC connection for video with a specific peer
 async function createVideoConnection(peerId) {
   const pc = new RTCPeerConnection({
     iceServers: [
@@ -189,9 +190,9 @@ async function createVideoConnection(peerId) {
 
   pc.ontrack = (e) => {
     const stream = e.streams[0];
-    if (stream) {
-      connectedPeers[peerId].stream = stream;
-      connectedPeers[peerId].hasCam = true;
+    if (stream && meshNode._peers[peerId]) {
+      meshNode._peers[peerId].stream = stream;
+      meshNode._peers[peerId].hasCam = true;
       updateCamList();
       if (activeVideoPeer === peerId) showVideoInCircle(stream);
     }
@@ -215,24 +216,17 @@ async function sendVideoOffer(peerId) {
   });
 }
 
-async function handleVideoSignal(data) {
-  if (data.type === 'vid_sdp') {
-    let pc = videoPcs[data.from];
-    if (!pc) pc = await createVideoConnection(data.from);
+async function handleVideoSignal(data, senderId) {
+  let pc = videoPcs[senderId];
+  if (!pc) pc = await createVideoConnection(senderId);
 
-    await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
-    if (data.sdp.type === 'offer') {
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      sendMessage(meshNode, meshTopic, {
-        type: 'vid_sdp', to: data.from, from: meshNode.peerId.id, sdp: pc.localDescription
-      });
-    }
-  } else if (data.type === 'vid_ice') {
-    const pc = videoPcs[data.from];
-    if (pc) {
-      try { await pc.addIceCandidate(new RTCIceCandidate(data.candidate)); } catch (e) {}
-    }
+  await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+  if (data.sdp.type === 'offer') {
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    sendMessage(meshNode, meshTopic, {
+      type: 'vid_sdp', to: senderId, from: meshNode.peerId.id, sdp: pc.localDescription
+    });
   }
 }
 
@@ -257,8 +251,7 @@ function toggleVideo() {
       activeVideoPeer = 'self';
       showVideoInCircle(stream);
       sendMessage(meshNode, meshTopic, { type: 'cam_on', from: meshNode.peerId.id, nickname });
-      // Offer video to all connected peers
-      for (const pid of Object.keys(connectedPeers)) {
+      for (const pid of Object.keys(meshNode._peers)) {
         sendVideoOffer(pid);
       }
       updateCamList();
@@ -267,7 +260,7 @@ function toggleVideo() {
       alert('Camera access denied.');
     });
   }
-}   
+}
 
 // ============ MESSAGING ============
 async function sendMessageHandler() {
@@ -330,7 +323,7 @@ function esc(s) {
 }
 
 function updatePeerCount() {
-  const count = Object.keys(connectedPeers).length + 1;
+  const count = Object.keys(meshNode._peers).length + 1;
   document.getElementById('peer-count').textContent = `${count} online`;
 }
 
@@ -356,35 +349,19 @@ document.getElementById('join-btn').addEventListener('click', async () => {
 
     groupCrypto = new CypherlinkCrypto(groupKey);
 
-    // Create libp2p node — this joins the DHT and finds other group members
     const result = await createNode(groupName);
     meshNode = result.node;
     meshTopic = result.topic;
 
-    // Set message handler
     setMessageHandler(meshNode, handleIncoming);
+    setPeerFoundHandler(meshNode, (peer) => {
+      updatePeerCount();
+      appendMessage(null, null, false, 'A member is in the group');
+    });
 
-    // Update our presence in DHT with our nickname
-    await updatePresence(meshNode, groupName, nickname);
+    // Announce our nickname to the group
+    await updateNickname(meshNode, meshTopic, nickname);
 
-    // Connect to existing peers we found
-    for (const peer of result.existingPeers) {
-      try {
-        await connectToPeer(meshNode, peer.id);
-        connectedPeers[peer.id] = {
-          nickname: peer.nickname || 'unknown',
-          stream: null,
-          hasCam: false
-        };
-        // Tell them who we are
-        sendMessage(meshNode, meshTopic, { type: 'hello', from: meshNode.peerId.id, nickname });
-        appendMessage(null, null, false, `${peer.nickname || 'A member'} is in the group`);
-      } catch (e) {
-        console.warn(`[Cypherlink] Could not connect to ${peer.id}:`, e);
-      }
-    }
-
-    // Show chat screen
     document.getElementById('join-screen').style.display = 'none';
     document.getElementById('chat-screen').style.display = 'flex';
     document.getElementById('group-name').textContent = `#${groupName}`;

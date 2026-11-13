@@ -1,0 +1,21 @@
+{
+  "name": "cypherlink",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "libp2p": "^3.5.1",
+    "@libp2p/webrtc": "^6.0.3",
+    "@libp2p/websockets": "^10.0.1",
+    "@libp2p/circuit-relay-v2": "^4.0.1",
+    "@libp2p/gossipsub": "^14.0.0",
+    "@chainsafe/libp2p-noise": "^17.0.0",
+    "@libp2p/yamux": "^7.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  },
+  "scripts": {
+    "build": "esbuild web/mesh.js web/crypto.js web/ui.js --outdir=dist --format=esm --bundle --platform=browser",
+    "serve": "python -m http.server 3000 --directory web"
+  }
+}   

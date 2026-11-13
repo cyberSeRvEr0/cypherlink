@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Cypherlink</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <canvas id="matrix"></canvas>
+
+  <div id="overlay">
+    <div id="header">
+      <span id="group-name">CYIPHERLINK</span>
+      <span id="user-name"></span>
+    </div>
+    <div id="chat"></div>
+    <div id="input-row">
+      <input id="msg-input" type="text" placeholder="Type a message..." autocomplete="off" />
+      <button id="send-btn">Send</button>
+    </div>
+  </div>
+
+  <!-- Join screen -->
+  <div id="join-screen">
+    <h1>CYIPHERLINK</h1>
+    <label>Group name:</label>
+    <input id="join-group" type="text" />
+    <label>Invite key:</label>
+    <input id="join-key" type="text" />
+    <label>Your nickname:</label>
+    <input id="join-nick" type="text" />
+    <button id="join-btn">Enter</button>
+    <p id="join-error" class="error"></p>
+  </div>
+
+  <script type="module" src="ui.js"></script>
+</body>
+</html>   

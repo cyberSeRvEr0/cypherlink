@@ -1,0 +1,55 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #000; font-family: 'Courier New', monospace; overflow: hidden; }
+
+#matrix { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; }
+
+#overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  z-index: 1; display: flex; flex-direction: column;
+  padding: 10px;
+}
+
+#header {
+  display: flex; justify-content: space-between;
+  color: #0f0; font-size: 18px; padding: 8px;
+  border-bottom: 1px solid #0f0;
+  text-shadow: 0 0 10px #0f0;
+}
+
+#chat {
+  flex: 1; overflow-y: auto; padding: 10px;
+  color: #0f0; font-size: 14px;
+}
+#chat .msg { margin: 2px 0; }
+#chat .msg .nick { color: #0ff; font-weight: bold; }
+#chat .msg .time { color: #555; font-size: 11px; }
+#chat .msg.self .nick { color: #ff0; }
+#chat .separator { border-top: 1px dashed #030; margin: 8px 0; }
+
+#input-row { display: flex; gap: 8px; padding-top: 8px; }
+#msg-input {
+  flex: 1; background: #001a00; border: 1px solid #0f0;
+  color: #0f0; padding: 8px; font-family: inherit; font-size: 14px;
+}
+#send-btn {
+  background: #003300; border: 1px solid #0f0; color: #0f0;
+  padding: 8px 16px; cursor: pointer; font-family: inherit;
+}
+#send-btn:hover { background: #005500; }
+
+#join-screen {
+  position: fixed; inset: 0; z-index: 10;
+  background: rgba(0,0,0,0.95);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; color: #0f0;
+}
+#join-screen h1 { font-size: 32px; text-shadow: 0 0 20px #0f0; }
+#join-screen input {
+  background: #001a00; border: 1px solid #0f0; color: #0f0;
+  padding: 8px 12px; width: 280px; font-family: inherit;
+}
+#join-screen button {
+  background: #003300; border: 1px solid #0f0; color: #0f0;
+  padding: 10px 32px; cursor: pointer; font-family: inherit; font-size: 16px;
+}
+.error { color: #f00; }   

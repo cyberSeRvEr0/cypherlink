@@ -19,6 +19,6 @@
     "esbuild": "^0.25.0"
   },
   "scripts": {
-    "build": "esbuild web/app.js --bundle --format=esm --platform=browser --outfile=web/bundle.js"
+    "build": "esbuild web/app.js --bundle --format=esm --platform=browser --outfile=web/bundle.js --define:global=self"   
   }
 }

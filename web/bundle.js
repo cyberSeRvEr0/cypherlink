@@ -2830,7 +2830,7 @@ var require_browser = __commonJS({
       throw new Error("Secure random number generation is not supported by this browser.\nUse Chrome, Firefox or Internet Explorer 11");
     }
     var Buffer2 = require_safe_buffer().Buffer;
-    var crypto4 = global.crypto || global.msCrypto;
+    var crypto4 = self.crypto || self.msCrypto;
     if (crypto4 && crypto4.getRandomValues) {
       module.exports = randomBytes6;
     } else {
@@ -5319,7 +5319,7 @@ var require_util = __commonJS({
     util.isNodejs = typeof process !== "undefined" && process.versions && process.versions.node;
     util.globalScope = (function() {
       if (util.isNodejs) {
-        return global;
+        return self;
       }
       return typeof self === "undefined" ? window : self;
     })();

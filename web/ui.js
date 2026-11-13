@@ -75,18 +75,23 @@ async function sendMessage() {
   if (!text) return;
   inputEl.value = '';
 
-  const { iv, ciphertext } = await crypto.encrypt(text);
-  await sendToGroup(meshNode, topic, {
-    type: 'message',
-    sender: nickname,
-    iv,
-    ciphertext,
-    ts: Date.now(),
-  });
-
-  // Show own message locally
+  // Show locally FIRST
   appendMessage(nickname, text, true);
-}
+
+  // Then try to send to network
+  try {
+    const { iv, ciphertext } = await crypto.encrypt(text);
+    await sendToGroup(meshNode, topic, {
+      type: 'message',
+      sender: nickname,
+      iv,
+      ciphertext,
+      ts: Date.now(),
+    });
+  } catch (e) {
+    console.error('[Cypherlink] Send failed:', e);
+  }
+}   
 
 document.getElementById('send-btn').addEventListener('click', sendMessage);
 inputEl.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });

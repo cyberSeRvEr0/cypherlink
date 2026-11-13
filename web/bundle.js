@@ -75454,15 +75454,19 @@ async function sendMessage() {
   const text = inputEl.value.trim();
   if (!text) return;
   inputEl.value = "";
-  const { iv, ciphertext } = await crypto2.encrypt(text);
-  await sendToGroup(meshNode, topic, {
-    type: "message",
-    sender: nickname,
-    iv,
-    ciphertext,
-    ts: Date.now()
-  });
   appendMessage(nickname, text, true);
+  try {
+    const { iv, ciphertext } = await crypto2.encrypt(text);
+    await sendToGroup(meshNode, topic, {
+      type: "message",
+      sender: nickname,
+      iv,
+      ciphertext,
+      ts: Date.now()
+    });
+  } catch (e) {
+    console.error("[Cypherlink] Send failed:", e);
+  }
 }
 document.getElementById("send-btn").addEventListener("click", sendMessage);
 inputEl.addEventListener("keydown", (e) => {

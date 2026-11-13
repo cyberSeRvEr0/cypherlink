@@ -13,11 +13,11 @@ const SIGNALING_URL = 'ws://' + location.hostname + ':9001';
 const MAX_MEMBERS = 100;
 
 // ============ STATE ============
-let peerId = crypto.randomUUID();
+let peerId = self.crypto.randomUUID();   
 let nickname = '';
 let groupName = '';
 let groupKey = '';
-let crypto = null;
+let groupCrypto = null;   
 let signalingWs = null;
 let peers = {};       // peer_id -> { pc, dc, nickname, videoEl }
 let localStream = null;
@@ -61,7 +61,7 @@ class CypherlinkCrypto {
   }
   async _derive(key) {
     const ikm = new TextEncoder().encode(key);
-    const base = await crypto.subtle.importKey('raw', ikm, 'HKDF', false, ['deriveKey']);
+    const base = await self.crypto.subtle.importKey('raw', ikm, 'HKDF', false, ['deriveKey']);
     this._key = await crypto.subtle.deriveKey(
       { name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(32), info: new TextEncoder().encode('cypherlink-v1') },
       base,
@@ -71,8 +71,8 @@ class CypherlinkCrypto {
     );
   }
   async encrypt(plaintext) {
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, this._key, new TextEncoder().encode(plaintext));
+    const iv = self.crypto.getRandomValues(new Uint8Array(12));
+    const ct = await self.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, this._key, new TextEncoder().encode(plaintext));
     return {
       iv: btoa(String.fromCharCode(...iv)),
       ct: btoa(String.fromCharCode(...new Uint8Array(ct)))
@@ -81,7 +81,7 @@ class CypherlinkCrypto {
   async decrypt(ivB64, ctB64) {
     const iv = Uint8Array.from(atob(ivB64), c => c.charCodeAt(0));
     const ct = Uint8Array.from(atob(ctB64), c => c.charCodeAt(0));
-    const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, this._key, ct);
+    const pt = await self.crypto.subtle.decrypt({ name: 'AES-GCM', iv }, this._key, ct);
     return new TextDecoder().decode(pt);
   }
 }
@@ -131,7 +131,7 @@ function createPeerConnection(remotePeerId) {
     try {
       const data = JSON.parse(event.data);
       if (data.type === 'msg') {
-        const text = await crypto.decrypt(data.iv, data.ct);
+        const text = await groupCrypto.decrypt(data.iv, data.ct);
         appendMessage(data.sender, text, false);
       } else if (data.type === 'video_request') {
         handleVideoRequest(remotePeerId);
@@ -345,7 +345,7 @@ async function sendMessage() {
   for (const [pid, peer] of Object.entries(peers)) {
     if (peer.dc && peer.dc.readyState === 'open') {
       try {
-        const { iv, ct } = await crypto.encrypt(text);
+        const { iv, ct } = await groupCrypto.encrypt(text);
         peer.dc.send(JSON.stringify({
           type: 'msg', sender: nickname, iv, ct, ts: Date.now()
         }));
@@ -411,7 +411,7 @@ document.getElementById('join-btn').addEventListener('click', async () => {
   }
 
   try {
-    crypto = new CypherlinkCrypto(groupKey);
+    groupCrypto = new CypherlinkCrypto(groupKey);
 
     document.getElementById('join-screen').style.display = 'none';
     document.getElementById('chat-screen').style.display = 'flex';

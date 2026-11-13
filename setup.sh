@@ -8,7 +8,7 @@ echo ""
 
 # --- 1. Check Python ---
 if ! command -v python3 &>/dev/null; then
-    echo "[1/3] Installing Python 3..."
+    echo "[1/4] Installing Python 3..."
     if command -v apt &>/dev/null; then
         sudo apt update && sudo apt install -y python3 python3-pip python3-venv python3-full
     elif command -v brew &>/dev/null; then
@@ -18,36 +18,64 @@ if ! command -v python3 &>/dev/null; then
         exit 1
     fi
 else
-    echo "[1/3] Python 3 found ✓"
+    echo "[1/4] Python 3 found ✓"
 fi
 
-# --- 2. Install dependencies ---
-echo "[2/3] Installing dependencies..."
-python3 -m venv .venv 2>/dev/null || true
-.venv/bin/pip install -r server/requirements.txt -q
-echo "      Done ✓"
+# --- 2. Install coturn (NAT traversal) ---
+if ! command -v turnserver &>/dev/null; then
+    echo "[2/4] Installing TURN server..."
+    if command -v apt &>/dev/null; then
+        sudo apt install -y coturn
+    elif command -v brew &>/dev/null; then
+        brew install coturn
+    fi
+    # Configure
+    sudo tee /etc/turnserver.conf > /dev/null << 'TURNCONF'
+listening-ip=0.0.0.0
+listening-port=3478
+min-port=49152
+max-port=65535
+fingerprint
+no-multicast-peers
+no-loopback-peers
+no-cli
+no-stdout-log
+no-timestamp-log
+use-auth-secret
+static-auth-secret=cypherlink123
+realm=cypherlink.local
+TURNCONF
+    echo "TURNSERVER_ENABLED=1" | sudo tee /etc/default/coturn > /dev/null 2>&1 || true
+    sudo systemctl enable coturn 2>/dev/null || true
+    sudo systemctl restart coturn 2>/dev/null || true
+    echo "      TURN installed ✓"
+else
+    echo "[2/4] TURN server found ✓"
+    sudo systemctl restart coturn 2>/dev/null || true
+fi
 
-# --- 3. Start everything ---
-echo "[3/3] Starting Cypherlink..."
+# --- 3. Firewall ---
+echo "[3/4] Configuring firewall..."
+if command -v ufw &>/dev/null; then
+    sudo ufw --force enable 2>/dev/null || true
+    sudo ufw allow 3000/tcp 2>/dev/null || true
+    sudo ufw allow 3478/tcp 2>/dev/null || true
+    sudo ufw allow 3478/udp 2>/dev/null || true
+    sudo ufw allow 49152:65535/udp 2>/dev/null || true
+    echo "      Firewall active (default deny) ✓"
+fi
 
-# Kill previous instance
-pkill -f "cypherlink/server.py" 2>/dev/null || true
+# --- 4. Start ---
+echo "[4/4] Starting Cypherlink..."
+
 pkill -f "http.server 3000" 2>/dev/null || true
 sleep 1
 
-# Start signaling server
-.venv/bin/python server/server.py &
-SERVER_PID=$!
-echo "      Signaling: ws://localhost:9001"
-
-# Serve web page
 python3 -m http.server 3000 --directory web &
 WEB_PID=$!
-echo "      Web:       http://localhost:3000"
 
 sleep 1
 
-# Open browser
 if command -v xdg-open &>/dev/null; then
     xdg-open http://localhost:3000
 elif command -v open &>/dev/null; then
@@ -58,12 +86,11 @@ echo ""
 echo "══════════════════════════════════════"
 echo "  Cypherlink is running!"
 echo ""
-echo "  Open http://localhost:3000"
-echo "  For 2 users: open a 2nd browser/incognito"
-echo "  Both join same group + key → P2P chat"
+echo "  Open: http://localhost:3000"
+echo "  TURN: turn://localhost:3478"
 echo ""
 echo "  Stop: Ctrl+C"
 echo "══════════════════════════════════════"
 
-trap "kill $SERVER_PID $WEB_PID 2>/dev/null; exit" INT TERM
+trap "kill $WEB_PID 2>/dev/null; exit" INT TERM
 wait   

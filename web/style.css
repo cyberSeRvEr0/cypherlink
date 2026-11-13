@@ -145,3 +145,53 @@ body {
   border-color: rgba(255,50,50,0.5);
   color: #f88;
 }   
+
+/* --- Video Circle (top-right) --- */
+#video-circle {
+  position: fixed;
+  top: 60px;
+  right: 20px;
+  width: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 50;
+}
+
+#circle-frame {
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid rgba(0,255,100,0.4);
+  box-shadow: 0 0 20px rgba(0,255,100,0.15);
+  background: #111;
+}
+
+#circle-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 20%;
+}
+
+#cam-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+  justify-content: center;
+  max-width: 220px;
+}
+
+.cam-name {
+  color: #0ff;
+  font-size: 12px;
+  padding: 4px 10px;
+  border: 1px solid rgba(0,255,255,0.3);
+  border-radius: 12px;
+  cursor: pointer;
+}
+.cam-name:hover { background: rgba(0,255,255,0.15); }
+.cam-name.self { color: #ff0; border-color: rgba(255,255,0,0.3); }
+.cam-name.self:hover { background: rgba(255,255,0,0.1); }   

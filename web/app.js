@@ -1,27 +1,23 @@
 /**
- * Cypherlink — P2P encrypted chat + video via WebRTC.
- * No npm. No bundling. Pure browser API + Python signaling.
+ * Cypherlink — P2P encrypted chat + video via libp2p DHT + WebRTC.
+ * No host. No meeting point. Each user is independent.
  */
 
-// ============ CONFIG ============
-const ICE_SERVERS = [
-  { urls: 'stun:' + location.hostname + ':3478' },
-  { urls: 'stun:stun.l.google.com:19302' }
-];     
+// ============ IMPORTS ============
+import { createNode, setMessageHandler, sendMessage, connectToPeer, updatePresence, discoverPeers, stopNode } from './mesh.js';
 
-const SIGNALING_URL = 'ws://' + location.hostname + ':9001';
+// ============ CONFIG ============
 const MAX_MEMBERS = 100;
 
 // ============ STATE ============
-let peerId = self.crypto.randomUUID();
 let nickname = '';
 let groupName = '';
-let groupKey = '';
 let groupCrypto = null;
-let signalingWs = null;
-let peers = {};
+let meshNode = null;
+let meshTopic = null;
 let localStream = null;
 let lastNick = null, lastTs = 0;
+let connectedPeers = {}; // peerId -> { nickname, stream, hasCam }
 
 // ============ MATRIX RAIN ============
 const canvas = document.getElementById('matrix');
@@ -53,10 +49,9 @@ window.addEventListener('resize', initMatrix);
   requestAnimationFrame(drawMatrix);
 })();
 
-// ============ CRYPTO (AES-256-GCM via WebCrypto) ============
+// ============ CRYPTO (AES-256-GCM) ============
 class CypherlinkCrypto {
   constructor(inviteKey) {
-    this._key = null;
     this._derive(inviteKey);
   }
   async _derive(key) {
@@ -86,182 +81,159 @@ class CypherlinkCrypto {
   }
 }
 
-// ============ SIGNALING ============
-function connectSignaling(group, nick, onSignal) {
-  return new Promise((resolve, reject) => {
-    signalingWs = new WebSocket(SIGNALING_URL);
-
-    signalingWs.onopen = () => {
-      signalingWs.send(JSON.stringify({
-        type: 'join', group, peer_id: peerId, nickname: nick
-      }));
-    };
-
-    signalingWs.onmessage = (event) => {
-      const msg = JSON.parse(event.data);
-      if (msg.type === 'joined') {
-        resolve(msg.existing_peers);
-      } else if (msg.type === 'error') {
-        reject(new Error(msg.msg));
-      } else {
-        onSignal(msg);
+// ============ MESSAGE HANDLER ============
+async function handleIncoming(data) {
+  if (data.type === 'msg') {
+    try {
+      const text = await groupCrypto.decrypt(data.iv, data.ct);
+      if (data.sender !== nickname) {
+        appendMessage(data.sender, text, false);
       }
-    };
+    } catch (e) {
+      console.error('[Cypherlink] Decrypt failed:', e);
+    }
+  } else if (data.type === 'cam_on') {
+    if (connectedPeers[data.from]) {
+      connectedPeers[data.from].hasCam = true;
+      connectedPeers[data.from].nickname = data.nickname || 'unknown';
+      updateCamList();
+      // They have camera — ask them to send video to us
+      sendVideoOffer(data.from);
+    }
+  } else if (data.type === 'cam_off') {
+    if (connectedPeers[data.from]) {
+      connectedPeers[data.from].hasCam = false;
+      connectedPeers[data.from].stream = null;
+      const pc = videoPcs[data.from];
+      if (pc) { pc.close(); delete videoPcs[data.from]; }
+      if (activeVideoPeer === data.from) { activeVideoPeer = null; clearCircle(); }
+      updateCamList();
+    }
+  } else if (data.type === 'hello') {
+    if (connectedPeers[data.from]) {
+      connectedPeers[data.from].nickname = data.nickname;
+      updatePeerCount();
+    }
+  } else if (data.type === 'vid_sdp' || data.type === 'vid_ice') {
+    handleVideoSignal(data);
+  }
+}   
 
-    signalingWs.onerror = () => reject(new Error('Cannot reach signaling server'));
-  });
-}
+// ============ VIDEO (Circle UI) ============
+let activeVideoPeer = null;
+let videoPcs = {}; // peerId -> RTCPeerConnection for media
 
-function sendSignal(msg) {
-  if (signalingWs && signalingWs.readyState === WebSocket.OPEN) {
-    signalingWs.send(JSON.stringify(msg));
+function showVideoInCircle(stream) {
+  const video = document.getElementById('circle-video');
+  if (video) {
+    video.srcObject = stream;
+    document.getElementById('video-circle').style.display = 'block';
   }
 }
 
-// ============ WEBRTC MESH ============
-function createPeerConnection(remotePeerId) {
-  const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
-  const dc = pc.createDataChannel('cypherlink', { ordered: true });
-
-  dc.onopen = () => {
-    console.log(`[Cypherlink] Channel open with ${remotePeerId}`);
-  };
-
-  dc.onmessage = async (event) => {
-    try {
-      const data = JSON.parse(event.data);
-      if (data.type === 'msg') {
-        const text = await groupCrypto.decrypt(data.iv, data.ct);
-        appendMessage(data.sender, text, false);
-      } else if (data.type === 'video_request') {
-        handleVideoRequest(remotePeerId);
-      } else if (data.type === 'video_stop') {
-        stopVideoFor(remotePeerId);
-      }
-    } catch (e) {
-      console.error('[Cypherlink] Message error:', e);
-    }
-  };
-
-  dc.onclose = () => {
-    console.log(`[Cypherlink] Channel closed with ${remotePeerId}`);
-  };
-
-  pc.onicecandidate = (event) => {
-    if (event.candidate) {
-      sendSignal({ type: 'ice', to: remotePeerId, candidate: event.candidate });
-    }
-  };
-
-  pc.onconnectionstatechange = () => {
-    if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
-      removePeer(remotePeerId);
-    }
-  };
-
-  // Handle remote video tracks
-  pc.ontrack = (event) => {
-    const remotePeerId2 = Object.keys(peers).find(pid => peers[pid].pc === pc);
-    if (remotePeerId2) {
-      showRemoteVideo(remotePeerId2, event.streams[0]);
-    }
-  };
-
-  return { pc, dc };
+function clearCircle() {
+  const video = document.getElementById('circle-video');
+  if (video) {
+    video.srcObject = null;
+    document.getElementById('video-circle').style.display = 'none';
+  }
 }
 
-async function createOffer(remotePeerId, remoteNickname) {
-  const { pc, dc } = createPeerConnection(remotePeerId);
-  peers[remotePeerId] = { pc, dc, nickname: remoteNickname || 'unknown' };
-  updatePeerCount();
+function updateCamList() {
+  const list = document.getElementById('cam-list');
+  if (!list) return;
+  list.innerHTML = '';
+
+  if (localStream) {
+    const btn = document.createElement('span');
+    btn.className = 'cam-name self';
+    btn.textContent = nickname;
+    btn.onclick = () => { activeVideoPeer = 'self'; showVideoInCircle(localStream); };
+    list.appendChild(btn);
+  }
+
+  for (const [pid, peer] of Object.entries(connectedPeers)) {
+    if (peer.hasCam && peer.stream) {
+      const btn = document.createElement('span');
+      btn.className = 'cam-name';
+      btn.textContent = peer.nickname || '???';
+      btn.onclick = () => { activeVideoPeer = pid; showVideoInCircle(peer.stream); };
+      list.appendChild(btn);
+    }
+  }
+
+  const circle = document.getElementById('video-circle');
+  if (circle) {
+    const hasCam = localStream || Object.values(connectedPeers).some(p => p.hasCam);
+    circle.style.display = hasCam ? 'flex' : 'none';
+  }
+}
+
+// Create a separate WebRTC connection for video with a specific peer
+async function createVideoConnection(peerId) {
+  const pc = new RTCPeerConnection({
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'turn:localhost:3478', username: 'cypherlink', credential: 'cypherlink123' }
+    ]
+  });
+  videoPcs[peerId] = pc;
+
+  pc.onicecandidate = (e) => {
+    if (e.candidate) {
+      sendMessage(meshNode, meshTopic, {
+        type: 'vid_ice', to: peerId, from: meshNode.peerId.id, candidate: e.candidate
+      });
+    }
+  };
+
+  pc.ontrack = (e) => {
+    const stream = e.streams[0];
+    if (stream) {
+      connectedPeers[peerId].stream = stream;
+      connectedPeers[peerId].hasCam = true;
+      updateCamList();
+      if (activeVideoPeer === peerId) showVideoInCircle(stream);
+    }
+  };
+
+  return pc;
+}
+
+async function sendVideoOffer(peerId) {
+  let pc = videoPcs[peerId];
+  if (!pc) pc = await createVideoConnection(peerId);
+
+  if (localStream) {
+    localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+  }
 
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer);
-  sendSignal({ type: 'sdp', to: remotePeerId, sdp: pc.localDescription });
+  sendMessage(meshNode, meshTopic, {
+    type: 'vid_sdp', to: peerId, from: meshNode.peerId.id, sdp: pc.localDescription
+  });
 }
 
-async function handleIncomingSignal(msg) {
-  if (msg.type === 'peer_joined') {
-    console.log(`[Cypherlink] ${msg.nickname} (${msg.peer_id}) joined`);
-    appendMessage(null, null, false, `${msg.nickname} joined the group`);
+async function handleVideoSignal(data) {
+  if (data.type === 'vid_sdp') {
+    let pc = videoPcs[data.from];
+    if (!pc) pc = await createVideoConnection(data.from);
 
-  } else if (msg.type === 'peer_left') {
-    appendMessage(null, null, false, 'A peer left the group');
-    removePeer(msg.peer_id);
-
-  } else if (msg.type === 'sdp') {
-    let peer = peers[msg.from];
-
-    if (!peer && msg.sdp.type === 'offer') {
-      const { pc, dc } = createPeerConnection(msg.from);
-      peers[msg.from] = { pc, dc, nickname: 'unknown' };
-      updatePeerCount();
-      peer = peers[msg.from];
-    }
-
-    if (!peer) return;
-    const { pc } = peer;
-    await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
-    if (msg.sdp.type === 'offer') {
+    await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+    if (data.sdp.type === 'offer') {
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      sendSignal({ type: 'sdp', to: msg.from, sdp: pc.localDescription });
+      sendMessage(meshNode, meshTopic, {
+        type: 'vid_sdp', to: data.from, from: meshNode.peerId.id, sdp: pc.localDescription
+      });
     }
-
-  } else if (msg.type === 'ice') {
-    const peer = peers[msg.from];
-    if (peer) {
-      try {
-        await peer.pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
-      } catch (e) {}
-    }
-  }
-}
-
-function removePeer(peerId) {
-  if (peers[peerId]) {
-    peers[peerId].pc.close();
-    const tile = document.getElementById(`video-${peerId}`);
-    if (tile) tile.remove();
-    delete peers[peerId];
-    updatePeerCount();
-  }
-}
-
-function updatePeerCount() {
-  document.getElementById('peer-count').textContent =
-    `${Object.keys(peers).length + 1} online`;
-}
-
-// ============ VIDEO ============
-async function handleVideoRequest(remotePeerId) {
-  if (!localStream) {
-    try {
-      localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    } catch (e) {
-      console.error('[Cypherlink] Camera denied:', e);
-      return;
+  } else if (data.type === 'vid_ice') {
+    const pc = videoPcs[data.from];
+    if (pc) {
+      try { await pc.addIceCandidate(new RTCIceCandidate(data.candidate)); } catch (e) {}
     }
   }
-  const peer = peers[remotePeerId];
-  if (peer) {
-    localStream.getTracks().forEach(track => {
-      peer.pc.addTrack(track, localStream);
-    });
-  }
-}
-
-function stopVideoFor(remotePeerId) {
-  const peer = peers[remotePeerId];
-  if (peer && peer.pc) {
-    peer.pc.getSenders().forEach(sender => {
-      if (sender.track && sender.track.kind !== 'data') {
-        peer.pc.removeTrack(sender);
-      }
-    });
-  }
-  const tile = document.getElementById(`video-${remotePeerId}`);
-  if (tile) tile.remove();
 }
 
 function toggleVideo() {
@@ -271,74 +243,34 @@ function toggleVideo() {
     localStream = null;
     btn.classList.remove('active');
     btn.textContent = 'CAM';
-    for (const [pid, peer] of Object.entries(peers)) {
-      if (peer.dc && peer.dc.readyState === 'open') {
-        peer.dc.send(JSON.stringify({ type: 'video_stop' }));
-      }
-    }
-    const myTile = document.getElementById('my-video-tile');
-    if (myTile) myTile.remove();
+    sendMessage(meshNode, meshTopic, { type: 'cam_off', from: meshNode.peerId.id });
+    if (activeVideoPeer === 'self') { activeVideoPeer = null; clearCircle(); }
+    updateCamList();
   } else {
-    navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
+    navigator.mediaDevices.getUserMedia({
+      video: { width: 640, height: 480, facingMode: 'user' },
+      audio: true
+    }).then(stream => {
       localStream = stream;
       btn.classList.add('active');
       btn.textContent = 'STOP';
-      showLocalVideo(stream);
-      for (const [pid, peer] of Object.entries(peers)) {
-        if (peer.dc && peer.dc.readyState === 'open') {
-          peer.dc.send(JSON.stringify({ type: 'video_request' }));
-        }
-        stream.getTracks().forEach(track => {
-          peer.pc.addTrack(track, stream);
-        });
+      activeVideoPeer = 'self';
+      showVideoInCircle(stream);
+      sendMessage(meshNode, meshTopic, { type: 'cam_on', from: meshNode.peerId.id, nickname });
+      // Offer video to all connected peers
+      for (const pid of Object.keys(connectedPeers)) {
+        sendVideoOffer(pid);
       }
-    }).catch(e => console.error('[Cypherlink] Camera error:', e));
+      updateCamList();
+    }).catch(e => {
+      console.error('[Cypherlink] Camera error:', e);
+      alert('Camera access denied.');
+    });
   }
-}
-
-function showLocalVideo(stream) {
-  const grid = document.getElementById('video-grid');
-  let tile = document.getElementById('my-video-tile');
-  if (!tile) {
-    tile = document.createElement('div');
-    tile.className = 'video-tile';
-    tile.id = 'my-video-tile';
-    const video = document.createElement('video');
-    video.autoplay = true;
-    video.muted = true;
-    video.playsInline = true;
-    const name = document.createElement('span');
-    name.className = 'vname';
-    name.textContent = nickname + ' (you)';
-    tile.appendChild(video);
-    tile.appendChild(name);
-    grid.prepend(tile);
-  }
-  tile.querySelector('video').srcObject = stream;
-}
-
-function showRemoteVideo(remotePeerId, stream) {
-  const grid = document.getElementById('video-grid');
-  let tile = document.getElementById(`video-${remotePeerId}`);
-  if (!tile) {
-    tile = document.createElement('div');
-    tile.className = 'video-tile';
-    tile.id = `video-${remotePeerId}`;
-    const video = document.createElement('video');
-    video.autoplay = true;
-    video.playsInline = true;
-    const name = document.createElement('span');
-    name.className = 'vname';
-    name.textContent = peers[remotePeerId]?.nickname || '???';
-    tile.appendChild(video);
-    tile.appendChild(name);
-    grid.appendChild(tile);
-  }
-  tile.querySelector('video').srcObject = stream;
-}
+}   
 
 // ============ MESSAGING ============
-async function sendMessage() {
+async function sendMessageHandler() {
   const input = document.getElementById('msg-input');
   const text = input.value.trim();
   if (!text) return;
@@ -346,17 +278,17 @@ async function sendMessage() {
 
   appendMessage(nickname, text, true);
 
-  for (const [pid, peer] of Object.entries(peers)) {
-    if (peer.dc && peer.dc.readyState === 'open') {
-      try {
-        const { iv, ct } = await groupCrypto.encrypt(text);
-        peer.dc.send(JSON.stringify({
-          type: 'msg', sender: nickname, iv, ct, ts: Date.now()
-        }));
-      } catch (e) {
-        console.error(`[Cypherlink] Send to ${pid} failed:`, e);
-      }
-    }
+  try {
+    const { iv, ct } = await groupCrypto.encrypt(text);
+    sendMessage(meshNode, meshTopic, {
+      type: 'msg',
+      sender: nickname,
+      iv,
+      ct,
+      ts: Date.now()
+    });
+  } catch (e) {
+    console.error('[Cypherlink] Send failed:', e);
   }
 }
 
@@ -397,6 +329,11 @@ function esc(s) {
   return d.innerHTML;
 }
 
+function updatePeerCount() {
+  const count = Object.keys(connectedPeers).length + 1;
+  document.getElementById('peer-count').textContent = `${count} online`;
+}
+
 // ============ JOIN ============
 document.querySelectorAll('#join-screen input').forEach(input => {
   input.addEventListener('keydown', e => {
@@ -406,7 +343,7 @@ document.querySelectorAll('#join-screen input').forEach(input => {
 
 document.getElementById('join-btn').addEventListener('click', async () => {
   groupName = document.getElementById('join-group').value.trim();
-  groupKey = document.getElementById('join-key').value.trim();
+  const groupKey = document.getElementById('join-key').value.trim();
   nickname = document.getElementById('join-nick').value.trim();
 
   if (!groupName || !groupKey || !nickname) {
@@ -415,37 +352,65 @@ document.getElementById('join-btn').addEventListener('click', async () => {
   }
 
   try {
+    document.getElementById('join-error').textContent = 'Connecting to network...';
+
     groupCrypto = new CypherlinkCrypto(groupKey);
 
+    // Create libp2p node — this joins the DHT and finds other group members
+    const result = await createNode(groupName);
+    meshNode = result.node;
+    meshTopic = result.topic;
+
+    // Set message handler
+    setMessageHandler(meshNode, handleIncoming);
+
+    // Update our presence in DHT with our nickname
+    await updatePresence(meshNode, groupName, nickname);
+
+    // Connect to existing peers we found
+    for (const peer of result.existingPeers) {
+      try {
+        await connectToPeer(meshNode, peer.id);
+        connectedPeers[peer.id] = {
+          nickname: peer.nickname || 'unknown',
+          stream: null,
+          hasCam: false
+        };
+        // Tell them who we are
+        sendMessage(meshNode, meshTopic, { type: 'hello', from: meshNode.peerId.id, nickname });
+        appendMessage(null, null, false, `${peer.nickname || 'A member'} is in the group`);
+      } catch (e) {
+        console.warn(`[Cypherlink] Could not connect to ${peer.id}:`, e);
+      }
+    }
+
+    // Show chat screen
     document.getElementById('join-screen').style.display = 'none';
     document.getElementById('chat-screen').style.display = 'flex';
     document.getElementById('group-name').textContent = `#${groupName}`;
     document.getElementById('user-name').textContent = nickname;
+    document.getElementById('join-error').textContent = '';
 
-    const existingPeers = await connectSignaling(groupName, nickname, handleIncomingSignal);
-
-    for (const p of existingPeers) {
-      await createOffer(p.peer_id, p.nickname);
-    }
-
+    updatePeerCount();
+    appendMessage(null, null, false, `You joined #${groupName} as ${nickname}`);
     document.getElementById('msg-input').focus();
+
   } catch (e) {
+    console.error('[Cypherlink] Join failed:', e);
     document.getElementById('join-screen').style.display = 'flex';
-    document.getElementById('join-error').textContent = e.message;
+    document.getElementById('join-error').textContent = e.message || 'Connection failed';
   }
 });
 
 // ============ INPUT ============
-document.getElementById('send-btn').addEventListener('click', sendMessage);
+document.getElementById('send-btn').addEventListener('click', sendMessageHandler);
 document.getElementById('msg-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter') sendMessage();
+  if (e.key === 'Enter') sendMessageHandler();
 });
 document.getElementById('video-btn').addEventListener('click', toggleVideo);
 
 // ============ CLEANUP ============
 window.addEventListener('beforeunload', () => {
-  sendSignal({ type: 'leave' });
-  for (const pid of Object.keys(peers)) removePeer(pid);
-  if (signalingWs) signalingWs.close();
+  if (meshNode) stopNode(meshNode);
   if (localStream) localStream.getTracks().forEach(t => t.stop());
 });   

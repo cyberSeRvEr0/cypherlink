@@ -33,7 +33,12 @@
       <span id="user-name"></span>
     </div>
 
-    <div id="video-grid"></div>
+    <div id="video-circle" style="display:none">
+      <div id="circle-frame">
+        <video id="circle-video" autoplay playsinline></video>
+      </div>
+      <div id="cam-list"></div>
+    </div>   
 
     <div id="chat"></div>
 
@@ -44,6 +49,6 @@
     </div>
   </div>
 
-  <script src="app.js"></script>
+  <script type="module" src="bundle.js"></script>   
 </body>
 </html>   

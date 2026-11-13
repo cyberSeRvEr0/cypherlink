@@ -38,11 +38,10 @@ initMatrix();
 window.addEventListener('resize', initMatrix);
 
 (function drawMatrix() {
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.06)';
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.04)';   
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.font = '14px monospace';
-  for (let i = 0; i < drops.length; i++) {
-    ctx.fillStyle = `rgba(0, ${60 + Math.random() * 50}, 0, 0.5)`;
+      ctx.fillStyle = `rgba(0, ${120 + Math.random() * 80}, 0, 0.8)`;   
     ctx.fillText(
       String.fromCharCode(33 + Math.floor(Math.random() * 93)),
       i * 14, drops[i] * 14
@@ -183,7 +182,17 @@ async function handleIncomingSignal(msg) {
     removePeer(msg.peer_id);
 
   } else if (msg.type === 'sdp') {
-    const peer = peers[msg.from];
+    let peer = peers[msg.from];
+
+    // If we don't know this peer yet (they joined and offered to us),
+    // create a passive peer connection for them
+    if (!peer && msg.sdp.type === 'offer') {
+      const { pc, dc } = createPeerConnection(msg.from);
+      peers[msg.from] = { pc, dc, nickname: 'unknown' };
+      updatePeerCount();
+      peer = peers[msg.from];
+    }
+
     if (!peer) return;
     const { pc } = peer;
     await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
@@ -191,7 +200,7 @@ async function handleIncomingSignal(msg) {
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       sendSignal({ type: 'sdp', to: msg.from, sdp: pc.localDescription });
-    }
+    }   
 
   } else if (msg.type === 'ice') {
     const peer = peers[msg.from];

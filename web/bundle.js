@@ -95452,8 +95452,15 @@ var BOOTSTRAP_LIST = [
   "/dnsaddr/bootstrap.libp2p.io/p2p/QmcZf59bWwK5XFi76CZX8cbJ4BhTzzA3gU1ZjYZcYW3dwt"
 ];
 var DHT_PREFIX = "cypherlink";
+var DHT_TIMEOUT = 5e3;
 function groupKey(groupName2) {
   return new TextEncoder().encode(`${DHT_PREFIX}:group:${groupName2}`);
+}
+function withTimeout(promise, ms2, fallback) {
+  return Promise.race([
+    promise,
+    new Promise((resolve) => setTimeout(() => resolve(fallback), ms2))
+  ]);
 }
 async function createNode(groupName2) {
   const node = await createLibp2p({
@@ -95497,6 +95504,7 @@ async function createNode(groupName2) {
   await node.services.pubsub.join(topic);
   node._peers = {};
   node._groupName = groupName2;
+  node._nickname = "";
   node.services.pubsub.subscribe(topic, (msg) => {
     const data = JSON.parse(new TextDecoder().decode(msg.data));
     const senderId = msg.from ? msg.from.toString ? msg.from.toString() : msg.from : null;
@@ -95508,7 +95516,11 @@ async function createNode(groupName2) {
     }
     if (node._onMessage) node._onMessage(data, senderId);
   });
-  const existingMembers = await dhtGetGroupMembers(node, groupName2);
+  const existingMembers = await withTimeout(
+    dhtGetGroupMembers(node, groupName2),
+    DHT_TIMEOUT,
+    []
+  );
   for (const member of existingMembers) {
     if (member.id === node.peerId.id) continue;
     try {
@@ -95518,10 +95530,10 @@ async function createNode(groupName2) {
         if (node._onPeerFound) node._onPeerFound(node._peers[member.id]);
       }
     } catch (e) {
-      console.warn(`[Cypherlink] Could not dial ${member.id.slice(0, 8)}...`);
     }
   }
-  await dhtAddToGroup(node, groupName2, "");
+  dhtAddToGroup(node, groupName2, "").catch(() => {
+  });
   try {
     const hello = { type: "hello", from: node.peerId.id, nickname: "", ts: Date.now() };
     await node.services.pubsub.publish(topic, new TextEncoder().encode(JSON.stringify(hello)));
@@ -95529,7 +95541,8 @@ async function createNode(groupName2) {
   }
   node._announceInterval = setInterval(async () => {
     try {
-      await dhtAddToGroup(node, groupName2, node._nickname || "");
+      dhtAddToGroup(node, groupName2, node._nickname || "").catch(() => {
+      });
       const hello = { type: "hello", from: node.peerId.id, nickname: node._nickname || "", ts: Date.now() };
       await node.services.pubsub.publish(topic, new TextEncoder().encode(JSON.stringify(hello)));
     } catch (e) {
@@ -95540,15 +95553,32 @@ async function createNode(groupName2) {
 async function dhtGetGroupMembers(node, groupName2) {
   const key = groupKey(groupName2);
   try {
-    for await (const event of node.services.dht.get(key)) {
-      if (event.type === "Value" && event.value) {
-        const data = JSON.parse(new TextDecoder().decode(event.value));
-        if (Array.isArray(data)) return data;
-      }
-    }
+    const result = await withTimeout(
+      new Promise((resolve, reject) => {
+        (async () => {
+          try {
+            for await (const event of node.services.dht.get(key)) {
+              if (event.type === "Value" && event.value) {
+                const data = JSON.parse(new TextDecoder().decode(event.value));
+                if (Array.isArray(data)) {
+                  resolve(data);
+                  return;
+                }
+              }
+            }
+            resolve([]);
+          } catch (e) {
+            resolve([]);
+          }
+        })();
+      }),
+      DHT_TIMEOUT,
+      []
+    );
+    return result;
   } catch (e) {
+    return [];
   }
-  return [];
 }
 async function dhtAddToGroup(node, groupName2, nickname2) {
   const key = groupKey(groupName2);
@@ -95562,28 +95592,69 @@ async function dhtAddToGroup(node, groupName2, nickname2) {
   });
   if (members.length > 100) members = members.slice(-100);
   try {
-    for await (const _ of node.services.dht.put(key, new TextEncoder().encode(JSON.stringify(members)))) {
-    }
+    await withTimeout(
+      new Promise((resolve) => {
+        (async () => {
+          try {
+            for await (const _ of node.services.dht.put(key, new TextEncoder().encode(JSON.stringify(members)))) {
+              resolve(true);
+              return;
+            }
+            resolve(false);
+          } catch (e) {
+            resolve(false);
+          }
+        })();
+      }),
+      DHT_TIMEOUT,
+      false
+    );
   } catch (e) {
-    console.warn("[Cypherlink] DHT put failed:", e.message);
   }
 }
 async function dhtRemoveFromGroup(node, groupName2) {
   const key = groupKey(groupName2);
   let members = await dhtGetGroupMembers(node, groupName2);
   members = members.filter((m2) => m2.id !== node.peerId.id);
-  if (members.length === 0) {
-    try {
-      for await (const _ of node.services.dht.remove(key)) {
-      }
-    } catch (e) {
+  try {
+    if (members.length === 0) {
+      await withTimeout(
+        new Promise((resolve) => {
+          (async () => {
+            try {
+              for await (const _ of node.services.dht.remove(key)) {
+                resolve(true);
+                return;
+              }
+              resolve(false);
+            } catch (e) {
+              resolve(false);
+            }
+          })();
+        }),
+        DHT_TIMEOUT,
+        false
+      );
+    } else {
+      await withTimeout(
+        new Promise((resolve) => {
+          (async () => {
+            try {
+              for await (const _ of node.services.dht.put(key, new TextEncoder().encode(JSON.stringify(members)))) {
+                resolve(true);
+                return;
+              }
+              resolve(false);
+            } catch (e) {
+              resolve(false);
+            }
+          })();
+        }),
+        DHT_TIMEOUT,
+        false
+      );
     }
-  } else {
-    try {
-      for await (const _ of node.services.dht.put(key, new TextEncoder().encode(JSON.stringify(members)))) {
-      }
-    } catch (e) {
-    }
+  } catch (e) {
   }
 }
 function setMessageHandler(node, handler) {
@@ -95600,7 +95671,8 @@ async function sendMessage(node, topic, payload) {
 }
 async function updateNickname(node, groupName2, nickname2) {
   node._nickname = nickname2;
-  await dhtAddToGroup(node, groupName2, nickname2);
+  dhtAddToGroup(node, groupName2, nickname2).catch(() => {
+  });
   const msg = { type: "hello", from: node.peerId.id, nickname: nickname2, ts: Date.now() };
   try {
     await node.services.pubsub.publish(`cypherlink/${groupName2}`, new TextEncoder().encode(JSON.stringify(msg)));
@@ -95610,7 +95682,8 @@ async function updateNickname(node, groupName2, nickname2) {
 function stopNode(node) {
   if (node._announceInterval) clearInterval(node._announceInterval);
   if (node._groupName) {
-    dhtRemoveFromGroup(node, node._groupName);
+    dhtRemoveFromGroup(node, node._groupName).catch(() => {
+    });
   }
   node.stop();
 }

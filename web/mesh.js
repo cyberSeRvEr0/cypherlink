@@ -1,6 +1,6 @@
 /**
  * Cypherlink mesh — P2P via libp2p.
- * Discovery: DHT (group member list stored as JSON array).
+ * Discovery: DHT (with timeouts) + GossipSub mesh-building.
  * Messaging: GossipSub (encrypted, peer-to-peer).
  * Transport: WebRTC + circuit relay (works across all networks).
  */
@@ -24,9 +24,18 @@ const BOOTSTRAP_LIST = [
 ];
 
 const DHT_PREFIX = 'cypherlink';
+const DHT_TIMEOUT = 5000; // 5 seconds
 
 function groupKey(groupName) {
   return new TextEncoder().encode(`${DHT_PREFIX}:group:${groupName}`);
+}
+
+// Timeout wrapper — if DHT doesn't respond in time, resolve with fallback
+function withTimeout(promise, ms, fallback) {
+  return Promise.race([
+    promise,
+    new Promise(resolve => setTimeout(() => resolve(fallback), ms))
+  ]);
 }
 
 export async function createNode(groupName) {
@@ -75,6 +84,7 @@ export async function createNode(groupName) {
   // Track group peers
   node._peers = {};
   node._groupName = groupName;
+  node._nickname = '';
 
   // Listen for group messages
   node.services.pubsub.subscribe(topic, (msg) => {
@@ -89,10 +99,14 @@ export async function createNode(groupName) {
     if (node._onMessage) node._onMessage(data, senderId);
   });
 
-  // --- DHT: Find existing group members ---
-  const existingMembers = await dhtGetGroupMembers(node, groupName);
+  // --- Try to find existing members via DHT (with timeout) ---
+  const existingMembers = await withTimeout(
+    dhtGetGroupMembers(node, groupName),
+    DHT_TIMEOUT,
+    []
+  );
 
-  // Dial them
+  // Dial any members we found
   for (const member of existingMembers) {
     if (member.id === node.peerId.id) continue;
     try {
@@ -101,24 +115,22 @@ export async function createNode(groupName) {
         node._peers[member.id] = { id: member.id, nickname: member.nickname || 'unknown', hasCam: false };
         if (node._onPeerFound) node._onPeerFound(node._peers[member.id]);
       }
-    } catch (e) {
-      console.warn(`[Cypherlink] Could not dial ${member.id.slice(0,8)}...`);
-    }
+    } catch (e) {}
   }
 
-  // --- DHT: Add ourselves to the group ---
-  await dhtAddToGroup(node, groupName, '');
+  // --- Add ourselves to DHT (with timeout, non-blocking) ---
+  dhtAddToGroup(node, groupName, '').catch(() => {});
 
-  // Announce on topic
+  // Announce on topic (immediate, no timeout needed)
   try {
     const hello = { type: 'hello', from: node.peerId.id, nickname: '', ts: Date.now() };
     await node.services.pubsub.publish(topic, new TextEncoder().encode(JSON.stringify(hello)));
   } catch (e) {}
 
-  // Periodic re-announce (keeps our DHT entry alive, catches late joiners)
+  // Periodic re-announce: keeps DHT entry alive + catches late joiners
   node._announceInterval = setInterval(async () => {
     try {
-      await dhtAddToGroup(node, groupName, node._nickname || '');
+      dhtAddToGroup(node, groupName, node._nickname || '').catch(() => {});
       const hello = { type: 'hello', from: node.peerId.id, nickname: node._nickname || '', ts: Date.now() };
       await node.services.pubsub.publish(topic, new TextEncoder().encode(JSON.stringify(hello)));
     } catch (e) {}
@@ -127,28 +139,40 @@ export async function createNode(groupName) {
   return { node, topic };
 }
 
-// --- DHT helpers ---
+// --- DHT helpers (all non-blocking, all with timeouts) ---
 
 async function dhtGetGroupMembers(node, groupName) {
   const key = groupKey(groupName);
   try {
-    for await (const event of node.services.dht.get(key)) {
-      if (event.type === 'Value' && event.value) {
-        const data = JSON.parse(new TextDecoder().decode(event.value));
-        if (Array.isArray(data)) return data;
-      }
-    }
+    const result = await withTimeout(
+      new Promise((resolve, reject) => {
+        (async () => {
+          try {
+            for await (const event of node.services.dht.get(key)) {
+              if (event.type === 'Value' && event.value) {
+                const data = JSON.parse(new TextDecoder().decode(event.value));
+                if (Array.isArray(data)) { resolve(data); return; }
+              }
+            }
+            resolve([]);
+          } catch (e) { resolve([]); }
+        })();
+      }),
+      DHT_TIMEOUT,
+      []
+    );
+    return result;
   } catch (e) {
-    // No group exists yet
+    return [];
   }
-  return [];
 }
 
 async function dhtAddToGroup(node, groupName, nickname) {
   const key = groupKey(groupName);
+
   let members = await dhtGetGroupMembers(node, groupName);
 
-  // Remove our old entry if exists
+  // Remove our old entry
   members = members.filter(m => m.id !== node.peerId.id);
 
   // Add ourselves
@@ -159,17 +183,25 @@ async function dhtAddToGroup(node, groupName, nickname) {
     ts: Date.now(),
   });
 
-  // Cap at 100
   if (members.length > 100) members = members.slice(-100);
 
-  // Write back
   try {
-    for await (const _ of node.services.dht.put(key, new TextEncoder().encode(JSON.stringify(members)))) {
-      // done
-    }
-  } catch (e) {
-    console.warn('[Cypherlink] DHT put failed:', e.message);
-  }
+    await withTimeout(
+      new Promise((resolve) => {
+        (async () => {
+          try {
+            for await (const _ of node.services.dht.put(key, new TextEncoder().encode(JSON.stringify(members)))) {
+              resolve(true);
+              return;
+            }
+            resolve(false);
+          } catch (e) { resolve(false); }
+        })();
+      }),
+      DHT_TIMEOUT,
+      false
+    );
+  } catch (e) {}
 }
 
 async function dhtRemoveFromGroup(node, groupName) {
@@ -177,15 +209,31 @@ async function dhtRemoveFromGroup(node, groupName) {
   let members = await dhtGetGroupMembers(node, groupName);
   members = members.filter(m => m.id !== node.peerId.id);
 
-  if (members.length === 0) {
-    try {
-      for await (const _ of node.services.dht.remove(key)) {}
-    } catch (e) {}
-  } else {
-    try {
-      for await (const _ of node.services.dht.put(key, new TextEncoder().encode(JSON.stringify(members)))) {}
-    } catch (e) {}
-  }
+  try {
+    if (members.length === 0) {
+      await withTimeout(
+        new Promise((resolve) => {
+          (async () => {
+            try { for await (const _ of node.services.dht.remove(key)) { resolve(true); return; } resolve(false); }
+            catch (e) { resolve(false); }
+          })();
+        }),
+        DHT_TIMEOUT,
+        false
+      );
+    } else {
+      await withTimeout(
+        new Promise((resolve) => {
+          (async () => {
+            try { for await (const _ of node.services.dht.put(key, new TextEncoder().encode(JSON.stringify(members)))) { resolve(true); return; } resolve(false); }
+            catch (e) { resolve(false); }
+          })();
+        }),
+        DHT_TIMEOUT,
+        false
+      );
+    }
+  } catch (e) {}
 }
 
 // --- Public API ---
@@ -210,7 +258,7 @@ export function getPeers(node) {
 
 export async function updateNickname(node, groupName, nickname) {
   node._nickname = nickname;
-  await dhtAddToGroup(node, groupName, nickname);
+  dhtAddToGroup(node, groupName, nickname).catch(() => {});
   const msg = { type: 'hello', from: node.peerId.id, nickname, ts: Date.now() };
   try {
     await node.services.pubsub.publish(`cypherlink/${groupName}`, new TextEncoder().encode(JSON.stringify(msg)));
@@ -219,9 +267,8 @@ export async function updateNickname(node, groupName, nickname) {
 
 export function stopNode(node) {
   if (node._announceInterval) clearInterval(node._announceInterval);
-  // Remove ourselves from the group
   if (node._groupName) {
-    dhtRemoveFromGroup(node, node._groupName);
+    dhtRemoveFromGroup(node, node._groupName).catch(() => {});
   }
   node.stop();
 }   

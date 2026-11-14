@@ -26924,7 +26924,7 @@ var MaxSizeError = class extends Error {
 
 // node_modules/@libp2p/peer-store/dist/src/pb/peer.js
 var Peer;
-(function(Peer4) {
+(function(Peer3) {
   let Peer$metadataEntry;
   (function(Peer$metadataEntry2) {
     let _codec2;
@@ -27010,7 +27010,7 @@ var Peer;
       return streamMessage3(buf, Peer$metadataEntry2.codec(), opts);
     }
     Peer$metadataEntry2.stream = stream2;
-  })(Peer$metadataEntry = Peer4.Peer$metadataEntry || (Peer4.Peer$metadataEntry = {}));
+  })(Peer$metadataEntry = Peer3.Peer$metadataEntry || (Peer3.Peer$metadataEntry = {}));
   let Peer$tagsEntry;
   (function(Peer$tagsEntry2) {
     let _codec2;
@@ -27096,9 +27096,9 @@ var Peer;
       return streamMessage3(buf, Peer$tagsEntry2.codec(), opts);
     }
     Peer$tagsEntry2.stream = stream2;
-  })(Peer$tagsEntry = Peer4.Peer$tagsEntry || (Peer4.Peer$tagsEntry = {}));
+  })(Peer$tagsEntry = Peer3.Peer$tagsEntry || (Peer3.Peer$tagsEntry = {}));
   let _codec;
-  Peer4.codec = () => {
+  Peer3.codec = () => {
     if (_codec == null) {
       _codec = message3((obj, w2, opts = {}) => {
         if (opts.lengthDelimited !== false) {
@@ -27127,13 +27127,13 @@ var Peer;
         if (obj.metadata != null && obj.metadata.size > 0) {
           for (const [key, value3] of obj.metadata.entries()) {
             w2.uint32(50);
-            Peer4.Peer$metadataEntry.codec().encode({ key, value: value3 }, w2);
+            Peer3.Peer$metadataEntry.codec().encode({ key, value: value3 }, w2);
           }
         }
         if (obj.tags != null && obj.tags.size > 0) {
           for (const [key, value3] of obj.tags.entries()) {
             w2.uint32(58);
-            Peer4.Peer$tagsEntry.codec().encode({ key, value: value3 }, w2);
+            Peer3.Peer$tagsEntry.codec().encode({ key, value: value3 }, w2);
           }
         }
         if (obj.updated != null) {
@@ -27182,7 +27182,7 @@ var Peer;
               if (opts.limits?.metadata != null && obj.metadata.size === opts.limits.metadata) {
                 throw new MaxSizeError('Decode error - map field "metadata" had too many elements');
               }
-              const entry = Peer4.Peer$metadataEntry.codec().decode(reader, reader.uint32(), {
+              const entry = Peer3.Peer$metadataEntry.codec().decode(reader, reader.uint32(), {
                 limits: {
                   value: opts.limits?.metadata$value
                 }
@@ -27194,7 +27194,7 @@ var Peer;
               if (opts.limits?.tags != null && obj.tags.size === opts.limits.tags) {
                 throw new MaxSizeError('Decode error - map field "tags" had too many elements');
               }
-              const entry = Peer4.Peer$tagsEntry.codec().decode(reader, reader.uint32(), {
+              const entry = Peer3.Peer$tagsEntry.codec().decode(reader, reader.uint32(), {
                 limits: {
                   value: opts.limits?.tags$value
                 }
@@ -27269,7 +27269,7 @@ var Peer;
               if (opts.limits?.metadata != null && obj.metadata === opts.limits.metadata) {
                 throw new MaxLengthError2('Decode error - map field "metadata" had too many elements');
               }
-              yield* Peer4.Peer$metadataEntry.codec().stream(reader, reader.uint32(), `${prefix}.metadata{}`, {
+              yield* Peer3.Peer$metadataEntry.codec().stream(reader, reader.uint32(), `${prefix}.metadata{}`, {
                 limits: {
                   value: opts.limits?.metadata$value
                 }
@@ -27281,7 +27281,7 @@ var Peer;
               if (opts.limits?.tags != null && obj.tags === opts.limits.tags) {
                 throw new MaxLengthError2('Decode error - map field "tags" had too many elements');
               }
-              yield* Peer4.Peer$tagsEntry.codec().stream(reader, reader.uint32(), `${prefix}.tags{}`, {
+              yield* Peer3.Peer$tagsEntry.codec().stream(reader, reader.uint32(), `${prefix}.tags{}`, {
                 limits: {
                   value: opts.limits?.tags$value
                 }
@@ -27307,17 +27307,17 @@ var Peer;
     return _codec;
   };
   function encode65(obj) {
-    return encodeMessage3(obj, Peer4.codec());
+    return encodeMessage3(obj, Peer3.codec());
   }
-  Peer4.encode = encode65;
+  Peer3.encode = encode65;
   function decode81(buf, opts) {
-    return decodeMessage3(buf, Peer4.codec(), opts);
+    return decodeMessage3(buf, Peer3.codec(), opts);
   }
-  Peer4.decode = decode81;
+  Peer3.decode = decode81;
   function stream(buf, opts) {
-    return streamMessage3(buf, Peer4.codec(), opts);
+    return streamMessage3(buf, Peer3.codec(), opts);
   }
-  Peer4.stream = stream;
+  Peer3.stream = stream;
 })(Peer || (Peer = {}));
 var Address;
 (function(Address2) {
@@ -49886,9 +49886,9 @@ var StopMessage;
   StopMessage2.stream = stream;
 })(StopMessage || (StopMessage = {}));
 var Peer2;
-(function(Peer4) {
+(function(Peer3) {
   let _codec;
-  Peer4.codec = () => {
+  Peer3.codec = () => {
     if (_codec == null) {
       _codec = message5((obj, w2, opts = {}) => {
         if (opts.lengthDelimited !== false) {
@@ -49972,17 +49972,17 @@ var Peer2;
     return _codec;
   };
   function encode65(obj) {
-    return encodeMessage5(obj, Peer4.codec());
+    return encodeMessage5(obj, Peer3.codec());
   }
-  Peer4.encode = encode65;
+  Peer3.encode = encode65;
   function decode81(buf, opts) {
-    return decodeMessage5(buf, Peer4.codec(), opts);
+    return decodeMessage5(buf, Peer3.codec(), opts);
   }
-  Peer4.decode = decode81;
+  Peer3.decode = decode81;
   function stream(buf, opts) {
-    return streamMessage5(buf, Peer4.codec(), opts);
+    return streamMessage5(buf, Peer3.codec(), opts);
   }
-  Peer4.stream = stream;
+  Peer3.stream = stream;
 })(Peer2 || (Peer2 = {}));
 var Reservation;
 (function(Reservation2) {
@@ -65913,211 +65913,12 @@ function bootstrap(init) {
   return (components) => new Bootstrap(components, init);
 }
 
-// node_modules/@libp2p/pubsub-peer-discovery/node_modules/@libp2p/interface/dist/src/peer-discovery.js
-var peerDiscoverySymbol3 = Symbol.for("@libp2p/peer-discovery");
-
-// node_modules/@libp2p/pubsub-peer-discovery/dist/src/peer.js
-var Peer3;
-(function(Peer4) {
-  let _codec;
-  Peer4.codec = () => {
-    if (_codec == null) {
-      _codec = message6((obj, w2, opts = {}) => {
-        if (opts.lengthDelimited !== false) {
-          w2.fork();
-        }
-        if (obj.publicKey != null && obj.publicKey.byteLength > 0) {
-          w2.uint32(10);
-          w2.bytes(obj.publicKey);
-        }
-        if (obj.addrs != null) {
-          for (const value3 of obj.addrs) {
-            w2.uint32(18);
-            w2.bytes(value3);
-          }
-        }
-        if (opts.lengthDelimited !== false) {
-          w2.ldelim();
-        }
-      }, (reader, length22, opts = {}) => {
-        const obj = {
-          publicKey: alloc15(0),
-          addrs: []
-        };
-        const end = length22 == null ? reader.len : reader.pos + length22;
-        while (reader.pos < end) {
-          const tag = reader.uint32();
-          switch (tag >>> 3) {
-            case 1: {
-              obj.publicKey = reader.bytes();
-              break;
-            }
-            case 2: {
-              if (opts.limits?.addrs != null && obj.addrs.length === opts.limits.addrs) {
-                throw new MaxLengthError4('Decode error - map field "addrs" had too many elements');
-              }
-              obj.addrs.push(reader.bytes());
-              break;
-            }
-            default: {
-              reader.skipType(tag & 7);
-              break;
-            }
-          }
-        }
-        return obj;
-      });
-    }
-    return _codec;
-  };
-  Peer4.encode = (obj) => {
-    return encodeMessage6(obj, Peer4.codec());
-  };
-  Peer4.decode = (buf, opts) => {
-    return decodeMessage6(buf, Peer4.codec(), opts);
-  };
-})(Peer3 || (Peer3 = {}));
-
-// node_modules/@libp2p/pubsub-peer-discovery/dist/src/index.js
-var TOPIC = "_peer-discovery._p2p._pubsub";
-var PubSubPeerDiscovery = class extends TypedEventEmitter {
-  [peerDiscoverySymbol3] = true;
-  [Symbol.toStringTag] = "@libp2p/pubsub-peer-discovery";
-  interval;
-  listenOnly;
-  topics;
-  intervalId;
-  components;
-  log;
-  constructor(components, init = {}) {
-    super();
-    const { interval, topics, listenOnly } = init;
-    this.components = components;
-    this.interval = interval ?? 1e4;
-    this.listenOnly = listenOnly ?? false;
-    this.log = components.logger.forComponent("libp2p:discovery:pubsub");
-    if (Array.isArray(topics) && topics.length > 0) {
-      this.topics = topics;
-    } else {
-      this.topics = [TOPIC];
-    }
-    this._onMessage = this._onMessage.bind(this);
-  }
-  isStarted() {
-    return this.intervalId != null;
-  }
-  start() {
-  }
-  /**
-   * Subscribes to the discovery topic on `libp2p.pubsub` and performs a broadcast
-   * immediately, and every `this.interval`
-   */
-  afterStart() {
-    if (this.intervalId != null) {
-      return;
-    }
-    const pubsub = this.components.pubsub;
-    if (pubsub == null) {
-      throw new Error("PubSub not configured");
-    }
-    for (const topic of this.topics) {
-      pubsub.subscribe(topic);
-      pubsub.addEventListener("message", this._onMessage);
-    }
-    if (this.listenOnly) {
-      return;
-    }
-    this._broadcast();
-    this.intervalId = setInterval(() => {
-      this._broadcast();
-    }, this.interval);
-  }
-  beforeStop() {
-    const pubsub = this.components.pubsub;
-    if (pubsub == null) {
-      throw new Error("PubSub not configured");
-    }
-    for (const topic of this.topics) {
-      pubsub.unsubscribe(topic);
-      pubsub.removeEventListener("message", this._onMessage);
-    }
-  }
-  /**
-   * Unsubscribes from the discovery topic
-   */
-  stop() {
-    if (this.intervalId != null) {
-      clearInterval(this.intervalId);
-      this.intervalId = void 0;
-    }
-  }
-  /**
-   * Performs a broadcast via Pubsub publish
-   */
-  _broadcast() {
-    const peerId = this.components.peerId;
-    if (peerId.publicKey == null) {
-      throw new Error("PeerId was missing public key");
-    }
-    const peer = {
-      publicKey: publicKeyToProtobuf(peerId.publicKey),
-      addrs: this.components.addressManager.getAddresses().map((ma) => ma.bytes)
-    };
-    const encodedPeer = Peer3.encode(peer);
-    const pubsub = this.components.pubsub;
-    if (pubsub == null) {
-      throw new Error("PubSub not configured");
-    }
-    for (const topic of this.topics) {
-      if (pubsub.getSubscribers(topic).length === 0) {
-        this.log("skipping broadcasting our peer data on topic %s because there are no peers present", topic);
-        continue;
-      }
-      this.log("broadcasting our peer data on topic %s", topic);
-      void pubsub.publish(topic, encodedPeer);
-    }
-  }
-  /**
-   * Handles incoming pubsub messages for our discovery topic
-   */
-  _onMessage(event) {
-    if (!this.isStarted()) {
-      return;
-    }
-    const message7 = event.detail;
-    if (!this.topics.includes(message7.topic)) {
-      return;
-    }
-    try {
-      const peer = Peer3.decode(message7.data);
-      const publicKey = publicKeyFromProtobuf(peer.publicKey);
-      const peerId = peerIdFromPublicKey(publicKey);
-      if (peerId.equals(this.components.peerId)) {
-        return;
-      }
-      this.log("discovered peer %p on %s", peerId, message7.topic);
-      this.safeDispatchEvent("peer", {
-        detail: {
-          id: peerId,
-          multiaddrs: peer.addrs.map((b) => multiaddr(b))
-        }
-      });
-    } catch (err) {
-      this.log.error("error handling incoming message", err);
-    }
-  }
-};
-function pubsubPeerDiscovery(init = {}) {
-  return (components) => new PubSubPeerDiscovery(components, init);
-}
-
 // web/mesh.js
 var BOOTSTRAP_LIST = [
   "/dns4/bootstrap.libp2p.io/tcp/443/wss/p2p/QmNnooDu7bfjPFoTZYxMNLWuQJyr1wtgzE931WmXSgRnHhy",
   "/dns4/node.libp2p.io/tcp/443/wss/p2p/QmQCU2EcMqAqQPR2i9bChDtGNJchTbq5TbXJJ16u19uLTa",
   "/dns4/bootstrap.libp2p.io/tcp/443/wss/p2p/QmQCU2EcMqAqQPR2i9bChDtGNJchTbq5TbXJJ16u19uLTa"
 ];
-var DISCOVERY_TOPIC = "cypherlink/discovery";
 async function createNode(groupName2) {
   const node = await createLibp2p({
     addresses: {
@@ -66137,10 +65938,6 @@ async function createNode(groupName2) {
       bootstrap({
         list: BOOTSTRAP_LIST,
         interval: 3e4
-      }),
-      pubsubPeerDiscovery({
-        interval: 1e4,
-        topics: [DISCOVERY_TOPIC]
       })
     ],
     services: {
@@ -66150,7 +65947,6 @@ async function createNode(groupName2) {
       })
     }
   });
-  await node.services.pubsub.join(DISCOVERY_TOPIC);
   const topic = `cypherlink/${groupName2}`;
   await node.services.pubsub.join(topic);
   node._peers = {};

@@ -12,7 +12,6 @@ import { noise } from '@chainsafe/libp2p-noise';
 import { yamux } from '@chainsafe/libp2p-yamux';
 import { identify } from '@libp2p/identify';
 import { bootstrap } from '@libp2p/bootstrap';
-import { pubsubPeerDiscovery } from '@libp2p/pubsub-peer-discovery';
 
 // Public bootstrap nodes (like DNS — help peers find each other,
 // they never see your messages or group names)
@@ -23,8 +22,6 @@ const BOOTSTRAP_LIST = [
 ];
 
 // Shared topic for peer discovery (all cypherlink users broadcast here)
-const DISCOVERY_TOPIC = 'cypherlink/discovery';
-
 export async function createNode(groupName) {
   const node = await createLibp2p({
     addresses: {
@@ -45,11 +42,7 @@ export async function createNode(groupName) {
         list: BOOTSTRAP_LIST,
         interval: 30000,
       }),
-      pubsubPeerDiscovery({
-        interval: 10000,
-        topics: [DISCOVERY_TOPIC],
-      }),
-    ],
+    ],   
     services: {
       identify: identify(),
       pubsub: gossipsub({
@@ -57,9 +50,6 @@ export async function createNode(groupName) {
       }),
     },
   });
-
-  // Subscribe to the discovery topic (so others can find us)
-  await node.services.pubsub.join(DISCOVERY_TOPIC);
 
   // Subscribe to the group topic
   const topic = `cypherlink/${groupName}`;

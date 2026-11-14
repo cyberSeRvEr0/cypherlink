@@ -9,7 +9,7 @@
     "@libp2p/bootstrap": "^12.0.36",
     "@libp2p/circuit-relay-v2": "^4.0.1",
     "@libp2p/identify": "^3.0.0",
-    "@libp2p/kad-dht": "^16.4.9",
+    "@libp2p/kad-dht": "^16.3.1",
     "@libp2p/peer-id": "^6.0.18",
     "@libp2p/ping": "^3.1.17",
     "@libp2p/pubsub-peer-discovery": "^12.0.0",

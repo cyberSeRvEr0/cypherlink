@@ -1397,8 +1397,8 @@ var Decoder = class {
       throw Error("Can only multibase decode strings");
     }
   }
-  or(decoder2) {
-    return or(this, decoder2);
+  or(decoder) {
+    return or(this, decoder);
   }
 };
 var ComposedDecoder = class {
@@ -1406,14 +1406,14 @@ var ComposedDecoder = class {
   constructor(decoders5) {
     this.decoders = decoders5;
   }
-  or(decoder2) {
-    return or(this, decoder2);
+  or(decoder) {
+    return or(this, decoder);
   }
   decode(input) {
     const prefix = input[0];
-    const decoder2 = this.decoders[prefix];
-    if (decoder2 != null) {
-      return decoder2.decode(input);
+    const decoder = this.decoders[prefix];
+    if (decoder != null) {
+      return decoder.decode(input);
     } else {
       throw RangeError(`Unable to decode multibase string ${JSON.stringify(input)}, only inputs prefixed with ${Object.keys(this.decoders)} are supported`);
     }
@@ -1864,9 +1864,9 @@ var CID = class _CID {
   equals(other) {
     return _CID.equals(this, other);
   }
-  static equals(self, other) {
+  static equals(self2, other) {
     const unknown = other;
-    return unknown != null && self.code === unknown.code && self.version === unknown.version && equals3(self.multihash, unknown.multihash);
+    return unknown != null && self2.code === unknown.code && self2.version === unknown.version && equals3(self2.multihash, unknown.multihash);
   }
   toString(base33) {
     return format(this, base33);
@@ -2043,23 +2043,23 @@ function parseCIDtoBytes(source, base33) {
   switch (source[0]) {
     // CIDv0 is parsed differently
     case "Q": {
-      const decoder2 = base33 ?? base58btc;
+      const decoder = base33 ?? base58btc;
       return [
         base58btc.prefix,
-        decoder2.decode(`${base58btc.prefix}${source}`)
+        decoder.decode(`${base58btc.prefix}${source}`)
       ];
     }
     case base58btc.prefix: {
-      const decoder2 = base33 ?? base58btc;
-      return [base58btc.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base58btc;
+      return [base58btc.prefix, decoder.decode(source)];
     }
     case base32.prefix: {
-      const decoder2 = base33 ?? base32;
-      return [base32.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base32;
+      return [base32.prefix, decoder.decode(source)];
     }
     case base36.prefix: {
-      const decoder2 = base33 ?? base36;
-      return [base36.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base36;
+      return [base36.prefix, decoder.decode(source)];
     }
     default: {
       if (base33 == null) {
@@ -2883,11 +2883,11 @@ function createCodec(name20, prefix, encode82, decode102) {
   };
 }
 var string = createCodec("utf8", "u", (buf) => {
-  const decoder2 = new TextDecoder("utf8");
-  return "u" + decoder2.decode(buf);
+  const decoder = new TextDecoder("utf8");
+  return "u" + decoder.decode(buf);
 }, (str) => {
-  const encoder2 = new TextEncoder();
-  return encoder2.encode(str.substring(1));
+  const encoder = new TextEncoder();
+  return encoder.encode(str.substring(1));
 });
 var ascii = createCodec("ascii", "a", (buf) => {
   let string19 = "a";
@@ -9341,8 +9341,8 @@ var Decoder2 = class {
       throw Error("Can only multibase decode strings");
     }
   }
-  or(decoder2) {
-    return or2(this, decoder2);
+  or(decoder) {
+    return or2(this, decoder);
   }
 };
 var ComposedDecoder2 = class {
@@ -9350,14 +9350,14 @@ var ComposedDecoder2 = class {
   constructor(decoders5) {
     this.decoders = decoders5;
   }
-  or(decoder2) {
-    return or2(this, decoder2);
+  or(decoder) {
+    return or2(this, decoder);
   }
   decode(input) {
     const prefix = input[0];
-    const decoder2 = this.decoders[prefix];
-    if (decoder2 != null) {
-      return decoder2.decode(input);
+    const decoder = this.decoders[prefix];
+    if (decoder != null) {
+      return decoder.decode(input);
     } else {
       throw RangeError(`Unable to decode multibase string ${JSON.stringify(input)}, only inputs prefixed with ${Object.keys(this.decoders)} are supported`);
     }
@@ -9808,9 +9808,9 @@ var CID2 = class _CID {
   equals(other) {
     return _CID.equals(this, other);
   }
-  static equals(self, other) {
+  static equals(self2, other) {
     const unknown = other;
-    return unknown != null && self.code === unknown.code && self.version === unknown.version && equals5(self.multihash, unknown.multihash);
+    return unknown != null && self2.code === unknown.code && self2.version === unknown.version && equals5(self2.multihash, unknown.multihash);
   }
   toString(base33) {
     return format2(this, base33);
@@ -9987,23 +9987,23 @@ function parseCIDtoBytes2(source, base33) {
   switch (source[0]) {
     // CIDv0 is parsed differently
     case "Q": {
-      const decoder2 = base33 ?? base58btc2;
+      const decoder = base33 ?? base58btc2;
       return [
         base58btc2.prefix,
-        decoder2.decode(`${base58btc2.prefix}${source}`)
+        decoder.decode(`${base58btc2.prefix}${source}`)
       ];
     }
     case base58btc2.prefix: {
-      const decoder2 = base33 ?? base58btc2;
-      return [base58btc2.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base58btc2;
+      return [base58btc2.prefix, decoder.decode(source)];
     }
     case base322.prefix: {
-      const decoder2 = base33 ?? base322;
-      return [base322.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base322;
+      return [base322.prefix, decoder.decode(source)];
     }
     case base362.prefix: {
-      const decoder2 = base33 ?? base362;
-      return [base362.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base362;
+      return [base362.prefix, decoder.decode(source)];
     }
     default: {
       if (base33 == null) {
@@ -10316,11 +10316,11 @@ function createCodec3(name20, prefix, encode82, decode102) {
   };
 }
 var string2 = createCodec3("utf8", "u", (buf) => {
-  const decoder2 = new TextDecoder("utf8");
-  return "u" + decoder2.decode(buf);
+  const decoder = new TextDecoder("utf8");
+  return "u" + decoder.decode(buf);
 }, (str) => {
-  const encoder2 = new TextEncoder();
-  return encoder2.encode(str.substring(1));
+  const encoder = new TextEncoder();
+  return encoder.encode(str.substring(1));
 });
 var ascii2 = createCodec3("ascii", "a", (buf) => {
   let string19 = "a";
@@ -10515,17 +10515,17 @@ var URLPeerId = class {
 // node_modules/@libp2p/peer-id/dist/src/index.js
 var LIBP2P_KEY_CODE2 = 114;
 var TRANSPORT_IPFS_GATEWAY_HTTP_CODE2 = 2336;
-function peerIdFromString(str, decoder2) {
+function peerIdFromString(str, decoder) {
   let multihash;
   if (str.charAt(0) === "1" || str.charAt(0) === "Q") {
     multihash = decode10(base58btc2.decode(`z${str}`));
   } else if (str.startsWith("k51qzi5uqu5") || str.startsWith("kzwfwjn5ji4") || str.startsWith("k2k4r8") || str.startsWith("bafz")) {
     return peerIdFromCID(CID2.parse(str));
   } else {
-    if (decoder2 == null) {
+    if (decoder == null) {
       throw new InvalidParametersError2('Please pass a multibase decoder for strings that do not start with "1" or "Q"');
     }
-    multihash = decode10(decoder2.decode(str));
+    multihash = decode10(decoder.decode(str));
   }
   return peerIdFromMultihash(multihash);
 }
@@ -11043,8 +11043,8 @@ var Decoder3 = class {
       throw Error("Can only multibase decode strings");
     }
   }
-  or(decoder2) {
-    return or3(this, decoder2);
+  or(decoder) {
+    return or3(this, decoder);
   }
 };
 var ComposedDecoder3 = class {
@@ -11052,14 +11052,14 @@ var ComposedDecoder3 = class {
   constructor(decoders5) {
     this.decoders = decoders5;
   }
-  or(decoder2) {
-    return or3(this, decoder2);
+  or(decoder) {
+    return or3(this, decoder);
   }
   decode(input) {
     const prefix = input[0];
-    const decoder2 = this.decoders[prefix];
-    if (decoder2 != null) {
-      return decoder2.decode(input);
+    const decoder = this.decoders[prefix];
+    if (decoder != null) {
+      return decoder.decode(input);
     } else {
       throw RangeError(`Unable to decode multibase string ${JSON.stringify(input)}, only inputs prefixed with ${Object.keys(this.decoders)} are supported`);
     }
@@ -11432,12 +11432,12 @@ function setup(env) {
       if (!debug.enabled) {
         return;
       }
-      const self = debug;
+      const self2 = debug;
       const curr = Number(/* @__PURE__ */ new Date());
       const ms2 = curr - (prevTime || curr);
-      self.diff = ms2;
-      self.prev = prevTime;
-      self.curr = curr;
+      self2.diff = ms2;
+      self2.prev = prevTime;
+      self2.curr = curr;
       prevTime = curr;
       args[0] = createDebug.coerce(args[0]);
       if (typeof args[0] !== "string") {
@@ -11452,18 +11452,18 @@ function setup(env) {
         const formatter = createDebug.formatters[format20];
         if (typeof formatter === "function") {
           const val = args[index];
-          match = formatter.call(self, val);
+          match = formatter.call(self2, val);
           args.splice(index, 1);
           index--;
         }
         return match;
       });
-      createDebug.formatArgs.call(self, args);
+      createDebug.formatArgs.call(self2, args);
       if (options?.onLog != null) {
         options.onLog(...args);
       }
-      const logFn = self.log || createDebug.log;
-      logFn.apply(self, args);
+      const logFn = self2.log || createDebug.log;
+      logFn.apply(self2, args);
     }
     debug.namespace = namespace;
     debug.useColors = createDebug.useColors();
@@ -12041,8 +12041,8 @@ var Decoder4 = class {
       throw Error("Can only multibase decode strings");
     }
   }
-  or(decoder2) {
-    return or4(this, decoder2);
+  or(decoder) {
+    return or4(this, decoder);
   }
 };
 var ComposedDecoder4 = class {
@@ -12050,14 +12050,14 @@ var ComposedDecoder4 = class {
   constructor(decoders5) {
     this.decoders = decoders5;
   }
-  or(decoder2) {
-    return or4(this, decoder2);
+  or(decoder) {
+    return or4(this, decoder);
   }
   decode(input) {
     const prefix = input[0];
-    const decoder2 = this.decoders[prefix];
-    if (decoder2 != null) {
-      return decoder2.decode(input);
+    const decoder = this.decoders[prefix];
+    if (decoder != null) {
+      return decoder.decode(input);
     } else {
       throw RangeError(`Unable to decode multibase string ${JSON.stringify(input)}, only inputs prefixed with ${Object.keys(this.decoders)} are supported`);
     }
@@ -13108,8 +13108,8 @@ var Decoder5 = class {
       throw Error("Can only multibase decode strings");
     }
   }
-  or(decoder2) {
-    return or5(this, decoder2);
+  or(decoder) {
+    return or5(this, decoder);
   }
 };
 var ComposedDecoder5 = class {
@@ -13117,14 +13117,14 @@ var ComposedDecoder5 = class {
   constructor(decoders5) {
     this.decoders = decoders5;
   }
-  or(decoder2) {
-    return or5(this, decoder2);
+  or(decoder) {
+    return or5(this, decoder);
   }
   decode(input) {
     const prefix = input[0];
-    const decoder2 = this.decoders[prefix];
-    if (decoder2 != null) {
-      return decoder2.decode(input);
+    const decoder = this.decoders[prefix];
+    if (decoder != null) {
+      return decoder.decode(input);
     } else {
       throw RangeError(`Unable to decode multibase string ${JSON.stringify(input)}, only inputs prefixed with ${Object.keys(this.decoders)} are supported`);
     }
@@ -13818,9 +13818,9 @@ var CID3 = class _CID {
   equals(other) {
     return _CID.equals(this, other);
   }
-  static equals(self, other) {
+  static equals(self2, other) {
     const unknown = other;
-    return unknown != null && self.code === unknown.code && self.version === unknown.version && equals11(self.multihash, unknown.multihash);
+    return unknown != null && self2.code === unknown.code && self2.version === unknown.version && equals11(self2.multihash, unknown.multihash);
   }
   toString(base33) {
     return format4(this, base33);
@@ -13997,23 +13997,23 @@ function parseCIDtoBytes3(source, base33) {
   switch (source[0]) {
     // CIDv0 is parsed differently
     case "Q": {
-      const decoder2 = base33 ?? base58btc5;
+      const decoder = base33 ?? base58btc5;
       return [
         base58btc5.prefix,
-        decoder2.decode(`${base58btc5.prefix}${source}`)
+        decoder.decode(`${base58btc5.prefix}${source}`)
       ];
     }
     case base58btc5.prefix: {
-      const decoder2 = base33 ?? base58btc5;
-      return [base58btc5.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base58btc5;
+      return [base58btc5.prefix, decoder.decode(source)];
     }
     case base324.prefix: {
-      const decoder2 = base33 ?? base324;
-      return [base324.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base324;
+      return [base324.prefix, decoder.decode(source)];
     }
     case base363.prefix: {
-      const decoder2 = base33 ?? base363;
-      return [base363.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base363;
+      return [base363.prefix, decoder.decode(source)];
     }
     default: {
       if (base33 == null) {
@@ -14081,11 +14081,11 @@ function createCodec4(name20, prefix, encode82, decode102) {
   };
 }
 var string3 = createCodec4("utf8", "u", (buf) => {
-  const decoder2 = new TextDecoder("utf8");
-  return "u" + decoder2.decode(buf);
+  const decoder = new TextDecoder("utf8");
+  return "u" + decoder.decode(buf);
 }, (str) => {
-  const encoder2 = new TextEncoder();
-  return encoder2.encode(str.substring(1));
+  const encoder = new TextEncoder();
+  return encoder.encode(str.substring(1));
 });
 var ascii3 = createCodec4("ascii", "a", (buf) => {
   let string19 = "a";
@@ -15532,8 +15532,8 @@ var Decoder6 = class {
       throw Error("Can only multibase decode strings");
     }
   }
-  or(decoder2) {
-    return or6(this, decoder2);
+  or(decoder) {
+    return or6(this, decoder);
   }
 };
 var ComposedDecoder6 = class {
@@ -15541,14 +15541,14 @@ var ComposedDecoder6 = class {
   constructor(decoders5) {
     this.decoders = decoders5;
   }
-  or(decoder2) {
-    return or6(this, decoder2);
+  or(decoder) {
+    return or6(this, decoder);
   }
   decode(input) {
     const prefix = input[0];
-    const decoder2 = this.decoders[prefix];
-    if (decoder2 != null) {
-      return decoder2.decode(input);
+    const decoder = this.decoders[prefix];
+    if (decoder != null) {
+      return decoder.decode(input);
     } else {
       throw RangeError(`Unable to decode multibase string ${JSON.stringify(input)}, only inputs prefixed with ${Object.keys(this.decoders)} are supported`);
     }
@@ -16242,9 +16242,9 @@ var CID4 = class _CID {
   equals(other) {
     return _CID.equals(this, other);
   }
-  static equals(self, other) {
+  static equals(self2, other) {
     const unknown = other;
-    return unknown != null && self.code === unknown.code && self.version === unknown.version && equals14(self.multihash, unknown.multihash);
+    return unknown != null && self2.code === unknown.code && self2.version === unknown.version && equals14(self2.multihash, unknown.multihash);
   }
   toString(base33) {
     return format5(this, base33);
@@ -16421,23 +16421,23 @@ function parseCIDtoBytes4(source, base33) {
   switch (source[0]) {
     // CIDv0 is parsed differently
     case "Q": {
-      const decoder2 = base33 ?? base58btc6;
+      const decoder = base33 ?? base58btc6;
       return [
         base58btc6.prefix,
-        decoder2.decode(`${base58btc6.prefix}${source}`)
+        decoder.decode(`${base58btc6.prefix}${source}`)
       ];
     }
     case base58btc6.prefix: {
-      const decoder2 = base33 ?? base58btc6;
-      return [base58btc6.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base58btc6;
+      return [base58btc6.prefix, decoder.decode(source)];
     }
     case base325.prefix: {
-      const decoder2 = base33 ?? base325;
-      return [base325.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base325;
+      return [base325.prefix, decoder.decode(source)];
     }
     case base364.prefix: {
-      const decoder2 = base33 ?? base364;
-      return [base364.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base364;
+      return [base364.prefix, decoder.decode(source)];
     }
     default: {
       if (base33 == null) {
@@ -16505,11 +16505,11 @@ function createCodec5(name20, prefix, encode82, decode102) {
   };
 }
 var string4 = createCodec5("utf8", "u", (buf) => {
-  const decoder2 = new TextDecoder("utf8");
-  return "u" + decoder2.decode(buf);
+  const decoder = new TextDecoder("utf8");
+  return "u" + decoder.decode(buf);
 }, (str) => {
-  const encoder2 = new TextEncoder();
-  return encoder2.encode(str.substring(1));
+  const encoder = new TextEncoder();
+  return encoder.encode(str.substring(1));
 });
 var ascii4 = createCodec5("ascii", "a", (buf) => {
   let string19 = "a";
@@ -21130,8 +21130,8 @@ var Decoder7 = class {
       throw Error("Can only multibase decode strings");
     }
   }
-  or(decoder2) {
-    return or8(this, decoder2);
+  or(decoder) {
+    return or8(this, decoder);
   }
 };
 var ComposedDecoder7 = class {
@@ -21139,14 +21139,14 @@ var ComposedDecoder7 = class {
   constructor(decoders5) {
     this.decoders = decoders5;
   }
-  or(decoder2) {
-    return or8(this, decoder2);
+  or(decoder) {
+    return or8(this, decoder);
   }
   decode(input) {
     const prefix = input[0];
-    const decoder2 = this.decoders[prefix];
-    if (decoder2 != null) {
-      return decoder2.decode(input);
+    const decoder = this.decoders[prefix];
+    if (decoder != null) {
+      return decoder.decode(input);
     } else {
       throw RangeError(`Unable to decode multibase string ${JSON.stringify(input)}, only inputs prefixed with ${Object.keys(this.decoders)} are supported`);
     }
@@ -21840,9 +21840,9 @@ var CID5 = class _CID {
   equals(other) {
     return _CID.equals(this, other);
   }
-  static equals(self, other) {
+  static equals(self2, other) {
     const unknown = other;
-    return unknown != null && self.code === unknown.code && self.version === unknown.version && equals17(self.multihash, unknown.multihash);
+    return unknown != null && self2.code === unknown.code && self2.version === unknown.version && equals17(self2.multihash, unknown.multihash);
   }
   toString(base33) {
     return format6(this, base33);
@@ -22019,23 +22019,23 @@ function parseCIDtoBytes5(source, base33) {
   switch (source[0]) {
     // CIDv0 is parsed differently
     case "Q": {
-      const decoder2 = base33 ?? base58btc7;
+      const decoder = base33 ?? base58btc7;
       return [
         base58btc7.prefix,
-        decoder2.decode(`${base58btc7.prefix}${source}`)
+        decoder.decode(`${base58btc7.prefix}${source}`)
       ];
     }
     case base58btc7.prefix: {
-      const decoder2 = base33 ?? base58btc7;
-      return [base58btc7.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base58btc7;
+      return [base58btc7.prefix, decoder.decode(source)];
     }
     case base326.prefix: {
-      const decoder2 = base33 ?? base326;
-      return [base326.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base326;
+      return [base326.prefix, decoder.decode(source)];
     }
     case base365.prefix: {
-      const decoder2 = base33 ?? base365;
-      return [base365.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base365;
+      return [base365.prefix, decoder.decode(source)];
     }
     default: {
       if (base33 == null) {
@@ -22103,11 +22103,11 @@ function createCodec6(name20, prefix, encode82, decode102) {
   };
 }
 var string5 = createCodec6("utf8", "u", (buf) => {
-  const decoder2 = new TextDecoder("utf8");
-  return "u" + decoder2.decode(buf);
+  const decoder = new TextDecoder("utf8");
+  return "u" + decoder.decode(buf);
 }, (str) => {
-  const encoder2 = new TextEncoder();
-  return encoder2.encode(str.substring(1));
+  const encoder = new TextEncoder();
+  return encoder.encode(str.substring(1));
 });
 var ascii5 = createCodec6("ascii", "a", (buf) => {
   let string19 = "a";
@@ -24816,8 +24816,8 @@ var Decoder8 = class {
       throw Error("Can only multibase decode strings");
     }
   }
-  or(decoder2) {
-    return or9(this, decoder2);
+  or(decoder) {
+    return or9(this, decoder);
   }
 };
 var ComposedDecoder8 = class {
@@ -24825,14 +24825,14 @@ var ComposedDecoder8 = class {
   constructor(decoders5) {
     this.decoders = decoders5;
   }
-  or(decoder2) {
-    return or9(this, decoder2);
+  or(decoder) {
+    return or9(this, decoder);
   }
   decode(input) {
     const prefix = input[0];
-    const decoder2 = this.decoders[prefix];
-    if (decoder2 != null) {
-      return decoder2.decode(input);
+    const decoder = this.decoders[prefix];
+    if (decoder != null) {
+      return decoder.decode(input);
     } else {
       throw RangeError(`Unable to decode multibase string ${JSON.stringify(input)}, only inputs prefixed with ${Object.keys(this.decoders)} are supported`);
     }
@@ -25276,9 +25276,9 @@ var CID6 = class _CID {
   equals(other) {
     return _CID.equals(this, other);
   }
-  static equals(self, other) {
+  static equals(self2, other) {
     const unknown = other;
-    return unknown != null && self.code === unknown.code && self.version === unknown.version && equals19(self.multihash, unknown.multihash);
+    return unknown != null && self2.code === unknown.code && self2.version === unknown.version && equals19(self2.multihash, unknown.multihash);
   }
   toString(base33) {
     return format7(this, base33);
@@ -25455,23 +25455,23 @@ function parseCIDtoBytes6(source, base33) {
   switch (source[0]) {
     // CIDv0 is parsed differently
     case "Q": {
-      const decoder2 = base33 ?? base58btc8;
+      const decoder = base33 ?? base58btc8;
       return [
         base58btc8.prefix,
-        decoder2.decode(`${base58btc8.prefix}${source}`)
+        decoder.decode(`${base58btc8.prefix}${source}`)
       ];
     }
     case base58btc8.prefix: {
-      const decoder2 = base33 ?? base58btc8;
-      return [base58btc8.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base58btc8;
+      return [base58btc8.prefix, decoder.decode(source)];
     }
     case base327.prefix: {
-      const decoder2 = base33 ?? base327;
-      return [base327.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base327;
+      return [base327.prefix, decoder.decode(source)];
     }
     case base366.prefix: {
-      const decoder2 = base33 ?? base366;
-      return [base366.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base366;
+      return [base366.prefix, decoder.decode(source)];
     }
     default: {
       if (base33 == null) {
@@ -26420,11 +26420,11 @@ function createCodec8(name20, prefix, encode82, decode102) {
   };
 }
 var string6 = createCodec8("utf8", "u", (buf) => {
-  const decoder2 = new TextDecoder("utf8");
-  return "u" + decoder2.decode(buf);
+  const decoder = new TextDecoder("utf8");
+  return "u" + decoder.decode(buf);
 }, (str) => {
-  const encoder2 = new TextEncoder();
-  return encoder2.encode(str.substring(1));
+  const encoder = new TextEncoder();
+  return encoder.encode(str.substring(1));
 });
 var ascii6 = createCodec8("ascii", "a", (buf) => {
   let string19 = "a";
@@ -27884,8 +27884,8 @@ var Decoder9 = class {
       throw Error("Can only multibase decode strings");
     }
   }
-  or(decoder2) {
-    return or10(this, decoder2);
+  or(decoder) {
+    return or10(this, decoder);
   }
 };
 var ComposedDecoder9 = class {
@@ -27893,14 +27893,14 @@ var ComposedDecoder9 = class {
   constructor(decoders5) {
     this.decoders = decoders5;
   }
-  or(decoder2) {
-    return or10(this, decoder2);
+  or(decoder) {
+    return or10(this, decoder);
   }
   decode(input) {
     const prefix = input[0];
-    const decoder2 = this.decoders[prefix];
-    if (decoder2 != null) {
-      return decoder2.decode(input);
+    const decoder = this.decoders[prefix];
+    if (decoder != null) {
+      return decoder.decode(input);
     } else {
       throw RangeError(`Unable to decode multibase string ${JSON.stringify(input)}, only inputs prefixed with ${Object.keys(this.decoders)} are supported`);
     }
@@ -28594,9 +28594,9 @@ var CID7 = class _CID {
   equals(other) {
     return _CID.equals(this, other);
   }
-  static equals(self, other) {
+  static equals(self2, other) {
     const unknown = other;
-    return unknown != null && self.code === unknown.code && self.version === unknown.version && equals22(self.multihash, unknown.multihash);
+    return unknown != null && self2.code === unknown.code && self2.version === unknown.version && equals22(self2.multihash, unknown.multihash);
   }
   toString(base33) {
     return format8(this, base33);
@@ -28773,23 +28773,23 @@ function parseCIDtoBytes7(source, base33) {
   switch (source[0]) {
     // CIDv0 is parsed differently
     case "Q": {
-      const decoder2 = base33 ?? base58btc9;
+      const decoder = base33 ?? base58btc9;
       return [
         base58btc9.prefix,
-        decoder2.decode(`${base58btc9.prefix}${source}`)
+        decoder.decode(`${base58btc9.prefix}${source}`)
       ];
     }
     case base58btc9.prefix: {
-      const decoder2 = base33 ?? base58btc9;
-      return [base58btc9.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base58btc9;
+      return [base58btc9.prefix, decoder.decode(source)];
     }
     case base328.prefix: {
-      const decoder2 = base33 ?? base328;
-      return [base328.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base328;
+      return [base328.prefix, decoder.decode(source)];
     }
     case base367.prefix: {
-      const decoder2 = base33 ?? base367;
-      return [base367.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base367;
+      return [base367.prefix, decoder.decode(source)];
     }
     default: {
       if (base33 == null) {
@@ -28862,11 +28862,11 @@ function createCodec10(name20, prefix, encode82, decode102) {
   };
 }
 var string7 = createCodec10("utf8", "u", (buf) => {
-  const decoder2 = new TextDecoder("utf8");
-  return "u" + decoder2.decode(buf);
+  const decoder = new TextDecoder("utf8");
+  return "u" + decoder.decode(buf);
 }, (str) => {
-  const encoder2 = new TextEncoder();
-  return encoder2.encode(str.substring(1));
+  const encoder = new TextEncoder();
+  return encoder.encode(str.substring(1));
 });
 var ascii7 = createCodec10("ascii", "a", (buf) => {
   let string19 = "a";
@@ -30635,9 +30635,9 @@ var CID8 = class _CID {
   equals(other) {
     return _CID.equals(this, other);
   }
-  static equals(self, other) {
+  static equals(self2, other) {
     const unknown = other;
-    return unknown != null && self.code === unknown.code && self.version === unknown.version && equals23(self.multihash, unknown.multihash);
+    return unknown != null && self2.code === unknown.code && self2.version === unknown.version && equals23(self2.multihash, unknown.multihash);
   }
   toString(base33) {
     return format9(this, base33);
@@ -30814,23 +30814,23 @@ function parseCIDtoBytes8(source, base33) {
   switch (source[0]) {
     // CIDv0 is parsed differently
     case "Q": {
-      const decoder2 = base33 ?? base58btc3;
+      const decoder = base33 ?? base58btc3;
       return [
         base58btc3.prefix,
-        decoder2.decode(`${base58btc3.prefix}${source}`)
+        decoder.decode(`${base58btc3.prefix}${source}`)
       ];
     }
     case base58btc3.prefix: {
-      const decoder2 = base33 ?? base58btc3;
-      return [base58btc3.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base58btc3;
+      return [base58btc3.prefix, decoder.decode(source)];
     }
     case base323.prefix: {
-      const decoder2 = base33 ?? base323;
-      return [base323.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base323;
+      return [base323.prefix, decoder.decode(source)];
     }
     case base368.prefix: {
-      const decoder2 = base33 ?? base368;
-      return [base368.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base368;
+      return [base368.prefix, decoder.decode(source)];
     }
     default: {
       if (base33 == null) {
@@ -30898,11 +30898,11 @@ function createCodec11(name20, prefix, encode82, decode102) {
   };
 }
 var string8 = createCodec11("utf8", "u", (buf) => {
-  const decoder2 = new TextDecoder("utf8");
-  return "u" + decoder2.decode(buf);
+  const decoder = new TextDecoder("utf8");
+  return "u" + decoder.decode(buf);
 }, (str) => {
-  const encoder2 = new TextEncoder();
-  return encoder2.encode(str.substring(1));
+  const encoder = new TextEncoder();
+  return encoder.encode(str.substring(1));
 });
 var ascii8 = createCodec11("ascii", "a", (buf) => {
   let string19 = "a";
@@ -33399,8 +33399,8 @@ var Decoder10 = class {
       throw Error("Can only multibase decode strings");
     }
   }
-  or(decoder2) {
-    return or11(this, decoder2);
+  or(decoder) {
+    return or11(this, decoder);
   }
 };
 var ComposedDecoder10 = class {
@@ -33408,14 +33408,14 @@ var ComposedDecoder10 = class {
   constructor(decoders5) {
     this.decoders = decoders5;
   }
-  or(decoder2) {
-    return or11(this, decoder2);
+  or(decoder) {
+    return or11(this, decoder);
   }
   decode(input) {
     const prefix = input[0];
-    const decoder2 = this.decoders[prefix];
-    if (decoder2 != null) {
-      return decoder2.decode(input);
+    const decoder = this.decoders[prefix];
+    if (decoder != null) {
+      return decoder.decode(input);
     } else {
       throw RangeError(`Unable to decode multibase string ${JSON.stringify(input)}, only inputs prefixed with ${Object.keys(this.decoders)} are supported`);
     }
@@ -34109,9 +34109,9 @@ var CID9 = class _CID {
   equals(other) {
     return _CID.equals(this, other);
   }
-  static equals(self, other) {
+  static equals(self2, other) {
     const unknown = other;
-    return unknown != null && self.code === unknown.code && self.version === unknown.version && equals25(self.multihash, unknown.multihash);
+    return unknown != null && self2.code === unknown.code && self2.version === unknown.version && equals25(self2.multihash, unknown.multihash);
   }
   toString(base33) {
     return format10(this, base33);
@@ -34288,23 +34288,23 @@ function parseCIDtoBytes9(source, base33) {
   switch (source[0]) {
     // CIDv0 is parsed differently
     case "Q": {
-      const decoder2 = base33 ?? base58btc10;
+      const decoder = base33 ?? base58btc10;
       return [
         base58btc10.prefix,
-        decoder2.decode(`${base58btc10.prefix}${source}`)
+        decoder.decode(`${base58btc10.prefix}${source}`)
       ];
     }
     case base58btc10.prefix: {
-      const decoder2 = base33 ?? base58btc10;
-      return [base58btc10.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base58btc10;
+      return [base58btc10.prefix, decoder.decode(source)];
     }
     case base329.prefix: {
-      const decoder2 = base33 ?? base329;
-      return [base329.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base329;
+      return [base329.prefix, decoder.decode(source)];
     }
     case base369.prefix: {
-      const decoder2 = base33 ?? base369;
-      return [base369.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base369;
+      return [base369.prefix, decoder.decode(source)];
     }
     default: {
       if (base33 == null) {
@@ -34377,11 +34377,11 @@ function createCodec12(name20, prefix, encode82, decode102) {
   };
 }
 var string9 = createCodec12("utf8", "u", (buf) => {
-  const decoder2 = new TextDecoder("utf8");
-  return "u" + decoder2.decode(buf);
+  const decoder = new TextDecoder("utf8");
+  return "u" + decoder.decode(buf);
 }, (str) => {
-  const encoder2 = new TextEncoder();
-  return encoder2.encode(str.substring(1));
+  const encoder = new TextEncoder();
+  return encoder.encode(str.substring(1));
 });
 var ascii9 = createCodec12("ascii", "a", (buf) => {
   let string19 = "a";
@@ -35970,9 +35970,9 @@ var CompoundContentRouting = class {
     if (this.routers.length === 0) {
       throw new NoContentRoutersError("No content routers available");
     }
-    const self = this;
+    const self2 = this;
     const seen = new PeerSet();
-    for await (const peer of src_default2(...self.routers.filter((router) => router.findProviders instanceof Function).map((router) => router.findProviders(key, options)))) {
+    for await (const peer of src_default2(...self2.routers.filter((router) => router.findProviders instanceof Function).map((router) => router.findProviders(key, options)))) {
       if (peer == null) {
         continue;
       }
@@ -36197,12 +36197,12 @@ var DefaultPeerRouting = class {
     if (id.toString() === this.peerId.toString()) {
       throw new QueriedForSelfError("Should not try to find self");
     }
-    const self = this;
+    const self2 = this;
     const source = src_default2(...this.routers.filter((router) => router.findPeer instanceof Function).map((router) => (async function* () {
       try {
         yield await router.findPeer(id, options);
       } catch (err) {
-        self.log.error("router failed to find peer - %e", err);
+        self2.log.error("router failed to find peer - %e", err);
       }
     })()));
     for await (const peer of source) {
@@ -36225,20 +36225,20 @@ var DefaultPeerRouting = class {
     if (this.routers.length === 0) {
       throw new NoPeerRoutersError("No peer routers available");
     }
-    const self = this;
+    const self2 = this;
     const seen = createScalableCuckooFilter(1024);
     for await (const peer of parallel((async function* () {
-      const source = src_default2(...self.routers.filter((router) => router.getClosestPeers instanceof Function).map((router) => router.getClosestPeers(key, options)));
+      const source = src_default2(...self2.routers.filter((router) => router.getClosestPeers instanceof Function).map((router) => router.getClosestPeers(key, options)));
       for await (let peer2 of source) {
         yield async () => {
           if (peer2.multiaddrs.length === 0) {
             try {
-              peer2 = await self.findPeer(peer2.id, {
+              peer2 = await self2.findPeer(peer2.id, {
                 ...options,
                 useCache: false
               });
             } catch (err) {
-              self.log.error("could not find peer multiaddrs - %e", err);
+              self2.log.error("could not find peer multiaddrs - %e", err);
               return;
             }
           }
@@ -37145,8 +37145,8 @@ var Decoder11 = class {
       throw Error("Can only multibase decode strings");
     }
   }
-  or(decoder2) {
-    return or12(this, decoder2);
+  or(decoder) {
+    return or12(this, decoder);
   }
 };
 var ComposedDecoder11 = class {
@@ -37154,14 +37154,14 @@ var ComposedDecoder11 = class {
   constructor(decoders5) {
     this.decoders = decoders5;
   }
-  or(decoder2) {
-    return or12(this, decoder2);
+  or(decoder) {
+    return or12(this, decoder);
   }
   decode(input) {
     const prefix = input[0];
-    const decoder2 = this.decoders[prefix];
-    if (decoder2 != null) {
-      return decoder2.decode(input);
+    const decoder = this.decoders[prefix];
+    if (decoder != null) {
+      return decoder.decode(input);
     } else {
       throw RangeError(`Unable to decode multibase string ${JSON.stringify(input)}, only inputs prefixed with ${Object.keys(this.decoders)} are supported`);
     }
@@ -37855,9 +37855,9 @@ var CID10 = class _CID {
   equals(other) {
     return _CID.equals(this, other);
   }
-  static equals(self, other) {
+  static equals(self2, other) {
     const unknown = other;
-    return unknown != null && self.code === unknown.code && self.version === unknown.version && equals27(self.multihash, unknown.multihash);
+    return unknown != null && self2.code === unknown.code && self2.version === unknown.version && equals27(self2.multihash, unknown.multihash);
   }
   toString(base33) {
     return format11(this, base33);
@@ -38034,23 +38034,23 @@ function parseCIDtoBytes10(source, base33) {
   switch (source[0]) {
     // CIDv0 is parsed differently
     case "Q": {
-      const decoder2 = base33 ?? base58btc11;
+      const decoder = base33 ?? base58btc11;
       return [
         base58btc11.prefix,
-        decoder2.decode(`${base58btc11.prefix}${source}`)
+        decoder.decode(`${base58btc11.prefix}${source}`)
       ];
     }
     case base58btc11.prefix: {
-      const decoder2 = base33 ?? base58btc11;
-      return [base58btc11.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base58btc11;
+      return [base58btc11.prefix, decoder.decode(source)];
     }
     case base3210.prefix: {
-      const decoder2 = base33 ?? base3210;
-      return [base3210.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base3210;
+      return [base3210.prefix, decoder.decode(source)];
     }
     case base3610.prefix: {
-      const decoder2 = base33 ?? base3610;
-      return [base3610.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base3610;
+      return [base3610.prefix, decoder.decode(source)];
     }
     default: {
       if (base33 == null) {
@@ -38126,11 +38126,11 @@ function createCodec13(name20, prefix, encode82, decode102) {
   };
 }
 var string10 = createCodec13("utf8", "u", (buf) => {
-  const decoder2 = new TextDecoder("utf8");
-  return "u" + decoder2.decode(buf);
+  const decoder = new TextDecoder("utf8");
+  return "u" + decoder.decode(buf);
 }, (str) => {
-  const encoder2 = new TextEncoder();
-  return encoder2.encode(str.substring(1));
+  const encoder = new TextEncoder();
+  return encoder.encode(str.substring(1));
 });
 var ascii10 = createCodec13("ascii", "a", (buf) => {
   let string19 = "a";
@@ -39331,10 +39331,10 @@ var Upgrader = class {
         cryptoProtocol = "native";
         remotePeer = opts.remotePeer;
       } else {
-        const peerIdString2 = maConn.remoteAddr.getComponents().findLast((c) => c.code === CODE_P2P)?.value;
+        const peerIdString = maConn.remoteAddr.getComponents().findLast((c) => c.code === CODE_P2P)?.value;
         let remotePeerFromMultiaddr;
-        if (peerIdString2 != null) {
-          remotePeerFromMultiaddr = peerIdFromString(peerIdString2);
+        if (peerIdString != null) {
+          remotePeerFromMultiaddr = peerIdFromString(peerIdString);
         }
         opts?.onProgress?.(new CustomProgressEvent(`upgrader:encrypt-${direction}-connection`));
         ({
@@ -40774,8 +40774,8 @@ var Decoder12 = class {
       throw Error("Can only multibase decode strings");
     }
   }
-  or(decoder2) {
-    return or13(this, decoder2);
+  or(decoder) {
+    return or13(this, decoder);
   }
 };
 var ComposedDecoder12 = class {
@@ -40783,14 +40783,14 @@ var ComposedDecoder12 = class {
   constructor(decoders5) {
     this.decoders = decoders5;
   }
-  or(decoder2) {
-    return or13(this, decoder2);
+  or(decoder) {
+    return or13(this, decoder);
   }
   decode(input) {
     const prefix = input[0];
-    const decoder2 = this.decoders[prefix];
-    if (decoder2 != null) {
-      return decoder2.decode(input);
+    const decoder = this.decoders[prefix];
+    if (decoder != null) {
+      return decoder.decode(input);
     } else {
       throw RangeError(`Unable to decode multibase string ${JSON.stringify(input)}, only inputs prefixed with ${Object.keys(this.decoders)} are supported`);
     }
@@ -41484,9 +41484,9 @@ var CID11 = class _CID {
   equals(other) {
     return _CID.equals(this, other);
   }
-  static equals(self, other) {
+  static equals(self2, other) {
     const unknown = other;
-    return unknown != null && self.code === unknown.code && self.version === unknown.version && equals30(self.multihash, unknown.multihash);
+    return unknown != null && self2.code === unknown.code && self2.version === unknown.version && equals30(self2.multihash, unknown.multihash);
   }
   toString(base33) {
     return format12(this, base33);
@@ -41663,23 +41663,23 @@ function parseCIDtoBytes11(source, base33) {
   switch (source[0]) {
     // CIDv0 is parsed differently
     case "Q": {
-      const decoder2 = base33 ?? base58btc12;
+      const decoder = base33 ?? base58btc12;
       return [
         base58btc12.prefix,
-        decoder2.decode(`${base58btc12.prefix}${source}`)
+        decoder.decode(`${base58btc12.prefix}${source}`)
       ];
     }
     case base58btc12.prefix: {
-      const decoder2 = base33 ?? base58btc12;
-      return [base58btc12.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base58btc12;
+      return [base58btc12.prefix, decoder.decode(source)];
     }
     case base3211.prefix: {
-      const decoder2 = base33 ?? base3211;
-      return [base3211.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base3211;
+      return [base3211.prefix, decoder.decode(source)];
     }
     case base3611.prefix: {
-      const decoder2 = base33 ?? base3611;
-      return [base3611.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base3611;
+      return [base3611.prefix, decoder.decode(source)];
     }
     default: {
       if (base33 == null) {
@@ -41747,11 +41747,11 @@ function createCodec14(name20, prefix, encode82, decode102) {
   };
 }
 var string11 = createCodec14("utf8", "u", (buf) => {
-  const decoder2 = new TextDecoder("utf8");
-  return "u" + decoder2.decode(buf);
+  const decoder = new TextDecoder("utf8");
+  return "u" + decoder.decode(buf);
 }, (str) => {
-  const encoder2 = new TextEncoder();
-  return encoder2.encode(str.substring(1));
+  const encoder = new TextEncoder();
+  return encoder.encode(str.substring(1));
 });
 var ascii11 = createCodec14("ascii", "a", (buf) => {
   let string19 = "a";
@@ -45929,8 +45929,8 @@ var Decoder13 = class {
       throw Error("Can only multibase decode strings");
     }
   }
-  or(decoder2) {
-    return or14(this, decoder2);
+  or(decoder) {
+    return or14(this, decoder);
   }
 };
 var ComposedDecoder13 = class {
@@ -45938,14 +45938,14 @@ var ComposedDecoder13 = class {
   constructor(decoders5) {
     this.decoders = decoders5;
   }
-  or(decoder2) {
-    return or14(this, decoder2);
+  or(decoder) {
+    return or14(this, decoder);
   }
   decode(input) {
     const prefix = input[0];
-    const decoder2 = this.decoders[prefix];
-    if (decoder2 != null) {
-      return decoder2.decode(input);
+    const decoder = this.decoders[prefix];
+    if (decoder != null) {
+      return decoder.decode(input);
     } else {
       throw RangeError(`Unable to decode multibase string ${JSON.stringify(input)}, only inputs prefixed with ${Object.keys(this.decoders)} are supported`);
     }
@@ -46639,9 +46639,9 @@ var CID12 = class _CID {
   equals(other) {
     return _CID.equals(this, other);
   }
-  static equals(self, other) {
+  static equals(self2, other) {
     const unknown = other;
-    return unknown != null && self.code === unknown.code && self.version === unknown.version && equals34(self.multihash, unknown.multihash);
+    return unknown != null && self2.code === unknown.code && self2.version === unknown.version && equals34(self2.multihash, unknown.multihash);
   }
   toString(base33) {
     return format13(this, base33);
@@ -46818,23 +46818,23 @@ function parseCIDtoBytes12(source, base33) {
   switch (source[0]) {
     // CIDv0 is parsed differently
     case "Q": {
-      const decoder2 = base33 ?? base58btc13;
+      const decoder = base33 ?? base58btc13;
       return [
         base58btc13.prefix,
-        decoder2.decode(`${base58btc13.prefix}${source}`)
+        decoder.decode(`${base58btc13.prefix}${source}`)
       ];
     }
     case base58btc13.prefix: {
-      const decoder2 = base33 ?? base58btc13;
-      return [base58btc13.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base58btc13;
+      return [base58btc13.prefix, decoder.decode(source)];
     }
     case base3212.prefix: {
-      const decoder2 = base33 ?? base3212;
-      return [base3212.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base3212;
+      return [base3212.prefix, decoder.decode(source)];
     }
     case base3612.prefix: {
-      const decoder2 = base33 ?? base3612;
-      return [base3612.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base3612;
+      return [base3612.prefix, decoder.decode(source)];
     }
     default: {
       if (base33 == null) {
@@ -46902,11 +46902,11 @@ function createCodec16(name20, prefix, encode82, decode102) {
   };
 }
 var string12 = createCodec16("utf8", "u", (buf) => {
-  const decoder2 = new TextDecoder("utf8");
-  return "u" + decoder2.decode(buf);
+  const decoder = new TextDecoder("utf8");
+  return "u" + decoder.decode(buf);
 }, (str) => {
-  const encoder2 = new TextEncoder();
-  return encoder2.encode(str.substring(1));
+  const encoder = new TextEncoder();
+  return encoder.encode(str.substring(1));
 });
 var ascii12 = createCodec16("ascii", "a", (buf) => {
   let string19 = "a";
@@ -48245,8 +48245,8 @@ var Decoder14 = class {
       throw Error("Can only multibase decode strings");
     }
   }
-  or(decoder2) {
-    return or15(this, decoder2);
+  or(decoder) {
+    return or15(this, decoder);
   }
 };
 var ComposedDecoder14 = class {
@@ -48254,14 +48254,14 @@ var ComposedDecoder14 = class {
   constructor(decoders5) {
     this.decoders = decoders5;
   }
-  or(decoder2) {
-    return or15(this, decoder2);
+  or(decoder) {
+    return or15(this, decoder);
   }
   decode(input) {
     const prefix = input[0];
-    const decoder2 = this.decoders[prefix];
-    if (decoder2 != null) {
-      return decoder2.decode(input);
+    const decoder = this.decoders[prefix];
+    if (decoder != null) {
+      return decoder.decode(input);
     } else {
       throw RangeError(`Unable to decode multibase string ${JSON.stringify(input)}, only inputs prefixed with ${Object.keys(this.decoders)} are supported`);
     }
@@ -48829,9 +48829,9 @@ var CID13 = class _CID {
   equals(other) {
     return _CID.equals(this, other);
   }
-  static equals(self, other) {
+  static equals(self2, other) {
     const unknown = other;
-    return unknown != null && self.code === unknown.code && self.version === unknown.version && equals36(self.multihash, unknown.multihash);
+    return unknown != null && self2.code === unknown.code && self2.version === unknown.version && equals36(self2.multihash, unknown.multihash);
   }
   toString(base33) {
     return format14(this, base33);
@@ -49008,23 +49008,23 @@ function parseCIDtoBytes13(source, base33) {
   switch (source[0]) {
     // CIDv0 is parsed differently
     case "Q": {
-      const decoder2 = base33 ?? base58btc14;
+      const decoder = base33 ?? base58btc14;
       return [
         base58btc14.prefix,
-        decoder2.decode(`${base58btc14.prefix}${source}`)
+        decoder.decode(`${base58btc14.prefix}${source}`)
       ];
     }
     case base58btc14.prefix: {
-      const decoder2 = base33 ?? base58btc14;
-      return [base58btc14.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base58btc14;
+      return [base58btc14.prefix, decoder.decode(source)];
     }
     case base3213.prefix: {
-      const decoder2 = base33 ?? base3213;
-      return [base3213.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base3213;
+      return [base3213.prefix, decoder.decode(source)];
     }
     case base3613.prefix: {
-      const decoder2 = base33 ?? base3613;
-      return [base3613.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base3613;
+      return [base3613.prefix, decoder.decode(source)];
     }
     default: {
       if (base33 == null) {
@@ -49092,11 +49092,11 @@ function createCodec17(name20, prefix, encode82, decode102) {
   };
 }
 var string13 = createCodec17("utf8", "u", (buf) => {
-  const decoder2 = new TextDecoder("utf8");
-  return "u" + decoder2.decode(buf);
+  const decoder = new TextDecoder("utf8");
+  return "u" + decoder.decode(buf);
 }, (str) => {
-  const encoder2 = new TextEncoder();
-  return encoder2.encode(str.substring(1));
+  const encoder = new TextEncoder();
+  return encoder.encode(str.substring(1));
 });
 var ascii13 = createCodec17("ascii", "a", (buf) => {
   let string19 = "a";
@@ -50480,18 +50480,18 @@ var LimitTracker = class {
     }
     const output = {};
     if (this.bytes != null) {
-      const self = this;
+      const self2 = this;
       Object.defineProperty(output, "bytes", {
         get() {
-          return self.bytes;
+          return self2.bytes;
         }
       });
     }
     if (this.expires != null) {
-      const self = this;
+      const self2 = this;
       Object.defineProperty(output, "seconds", {
         get() {
-          return Math.round(((self.expires ?? 0) - Date.now()) / 1e3);
+          return Math.round(((self2.expires ?? 0) - Date.now()) / 1e3);
         }
       });
     }
@@ -52219,8 +52219,8 @@ var Decoder15 = class {
       throw Error("Can only multibase decode strings");
     }
   }
-  or(decoder2) {
-    return or16(this, decoder2);
+  or(decoder) {
+    return or16(this, decoder);
   }
 };
 var ComposedDecoder15 = class {
@@ -52228,14 +52228,14 @@ var ComposedDecoder15 = class {
   constructor(decoders5) {
     this.decoders = decoders5;
   }
-  or(decoder2) {
-    return or16(this, decoder2);
+  or(decoder) {
+    return or16(this, decoder);
   }
   decode(input) {
     const prefix = input[0];
-    const decoder2 = this.decoders[prefix];
-    if (decoder2 != null) {
-      return decoder2.decode(input);
+    const decoder = this.decoders[prefix];
+    if (decoder != null) {
+      return decoder.decode(input);
     } else {
       throw RangeError(`Unable to decode multibase string ${JSON.stringify(input)}, only inputs prefixed with ${Object.keys(this.decoders)} are supported`);
     }
@@ -52659,9 +52659,9 @@ var CID14 = class _CID {
   equals(other) {
     return _CID.equals(this, other);
   }
-  static equals(self, other) {
+  static equals(self2, other) {
     const unknown = other;
-    return unknown != null && self.code === unknown.code && self.version === unknown.version && equals39(self.multihash, unknown.multihash);
+    return unknown != null && self2.code === unknown.code && self2.version === unknown.version && equals39(self2.multihash, unknown.multihash);
   }
   toString(base33) {
     return format15(this, base33);
@@ -52838,23 +52838,23 @@ function parseCIDtoBytes14(source, base33) {
   switch (source[0]) {
     // CIDv0 is parsed differently
     case "Q": {
-      const decoder2 = base33 ?? base58btc15;
+      const decoder = base33 ?? base58btc15;
       return [
         base58btc15.prefix,
-        decoder2.decode(`${base58btc15.prefix}${source}`)
+        decoder.decode(`${base58btc15.prefix}${source}`)
       ];
     }
     case base58btc15.prefix: {
-      const decoder2 = base33 ?? base58btc15;
-      return [base58btc15.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base58btc15;
+      return [base58btc15.prefix, decoder.decode(source)];
     }
     case base3214.prefix: {
-      const decoder2 = base33 ?? base3214;
-      return [base3214.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base3214;
+      return [base3214.prefix, decoder.decode(source)];
     }
     case base3614.prefix: {
-      const decoder2 = base33 ?? base3614;
-      return [base3614.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base3614;
+      return [base3614.prefix, decoder.decode(source)];
     }
     default: {
       if (base33 == null) {
@@ -53168,11 +53168,11 @@ function createCodec19(name20, prefix, encode82, decode102) {
   };
 }
 var string14 = createCodec19("utf8", "u", (buf) => {
-  const decoder2 = new TextDecoder("utf8");
-  return "u" + decoder2.decode(buf);
+  const decoder = new TextDecoder("utf8");
+  return "u" + decoder.decode(buf);
 }, (str) => {
-  const encoder2 = new TextEncoder();
-  return encoder2.encode(str.substring(1));
+  const encoder = new TextEncoder();
+  return encoder.encode(str.substring(1));
 });
 var ascii14 = createCodec19("ascii", "a", (buf) => {
   let string19 = "a";
@@ -53367,17 +53367,17 @@ var URLPeerId2 = class {
 // node_modules/@chainsafe/libp2p-gossipsub/node_modules/@libp2p/peer-id/dist/src/index.js
 var LIBP2P_KEY_CODE4 = 114;
 var TRANSPORT_IPFS_GATEWAY_HTTP_CODE4 = 2336;
-function peerIdFromString3(str, decoder2) {
+function peerIdFromString3(str, decoder) {
   let multihash;
   if (str.charAt(0) === "1" || str.charAt(0) === "Q") {
     multihash = decode75(base58btc15.decode(`z${str}`));
   } else if (str.startsWith("k51qzi5uqu5") || str.startsWith("kzwfwjn5ji4") || str.startsWith("k2k4r8") || str.startsWith("bafz")) {
     return peerIdFromCID2(CID14.parse(str));
   } else {
-    if (decoder2 == null) {
+    if (decoder == null) {
       throw new InvalidParametersError8('Please pass a multibase decoder for strings that do not start with "1" or "Q"');
     }
-    multihash = decode75(decoder2.decode(str));
+    multihash = decode75(decoder.decode(str));
   }
   return peerIdFromMultihash2(multihash);
 }
@@ -67460,8 +67460,8 @@ var Decoder17 = class {
       throw Error("Can only multibase decode strings");
     }
   }
-  or(decoder2) {
-    return or18(this, decoder2);
+  or(decoder) {
+    return or18(this, decoder);
   }
 };
 var ComposedDecoder16 = class {
@@ -67469,14 +67469,14 @@ var ComposedDecoder16 = class {
   constructor(decoders5) {
     this.decoders = decoders5;
   }
-  or(decoder2) {
-    return or18(this, decoder2);
+  or(decoder) {
+    return or18(this, decoder);
   }
   decode(input) {
     const prefix = input[0];
-    const decoder2 = this.decoders[prefix];
-    if (decoder2 != null) {
-      return decoder2.decode(input);
+    const decoder = this.decoders[prefix];
+    if (decoder != null) {
+      return decoder.decode(input);
     } else {
       throw RangeError(`Unable to decode multibase string ${JSON.stringify(input)}, only inputs prefixed with ${Object.keys(this.decoders)} are supported`);
     }
@@ -68170,9 +68170,9 @@ var CID15 = class _CID {
   equals(other) {
     return _CID.equals(this, other);
   }
-  static equals(self, other) {
+  static equals(self2, other) {
     const unknown = other;
-    return unknown != null && self.code === unknown.code && self.version === unknown.version && equals43(self.multihash, unknown.multihash);
+    return unknown != null && self2.code === unknown.code && self2.version === unknown.version && equals43(self2.multihash, unknown.multihash);
   }
   toString(base33) {
     return format16(this, base33);
@@ -68349,23 +68349,23 @@ function parseCIDtoBytes15(source, base33) {
   switch (source[0]) {
     // CIDv0 is parsed differently
     case "Q": {
-      const decoder2 = base33 ?? base58btc16;
+      const decoder = base33 ?? base58btc16;
       return [
         base58btc16.prefix,
-        decoder2.decode(`${base58btc16.prefix}${source}`)
+        decoder.decode(`${base58btc16.prefix}${source}`)
       ];
     }
     case base58btc16.prefix: {
-      const decoder2 = base33 ?? base58btc16;
-      return [base58btc16.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base58btc16;
+      return [base58btc16.prefix, decoder.decode(source)];
     }
     case base3215.prefix: {
-      const decoder2 = base33 ?? base3215;
-      return [base3215.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base3215;
+      return [base3215.prefix, decoder.decode(source)];
     }
     case base3615.prefix: {
-      const decoder2 = base33 ?? base3615;
-      return [base3615.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base3615;
+      return [base3615.prefix, decoder.decode(source)];
     }
     default: {
       if (base33 == null) {
@@ -68433,11 +68433,11 @@ function createCodec21(name20, prefix, encode82, decode102) {
   };
 }
 var string15 = createCodec21("utf8", "u", (buf) => {
-  const decoder2 = new TextDecoder("utf8");
-  return "u" + decoder2.decode(buf);
+  const decoder = new TextDecoder("utf8");
+  return "u" + decoder.decode(buf);
 }, (str) => {
-  const encoder2 = new TextEncoder();
-  return encoder2.encode(str.substring(1));
+  const encoder = new TextEncoder();
+  return encoder.encode(str.substring(1));
 });
 var ascii15 = createCodec21("ascii", "a", (buf) => {
   let string19 = "a";
@@ -70247,8 +70247,8 @@ var Decoder18 = class {
       throw Error("Can only multibase decode strings");
     }
   }
-  or(decoder2) {
-    return or19(this, decoder2);
+  or(decoder) {
+    return or19(this, decoder);
   }
 };
 var ComposedDecoder17 = class {
@@ -70256,14 +70256,14 @@ var ComposedDecoder17 = class {
   constructor(decoders5) {
     this.decoders = decoders5;
   }
-  or(decoder2) {
-    return or19(this, decoder2);
+  or(decoder) {
+    return or19(this, decoder);
   }
   decode(input) {
     const prefix = input[0];
-    const decoder2 = this.decoders[prefix];
-    if (decoder2 != null) {
-      return decoder2.decode(input);
+    const decoder = this.decoders[prefix];
+    if (decoder != null) {
+      return decoder.decode(input);
     } else {
       throw RangeError(`Unable to decode multibase string ${JSON.stringify(input)}, only inputs prefixed with ${Object.keys(this.decoders)} are supported`);
     }
@@ -70928,9 +70928,9 @@ var CID16 = class _CID {
   equals(other) {
     return _CID.equals(this, other);
   }
-  static equals(self, other) {
+  static equals(self2, other) {
     const unknown = other;
-    return unknown != null && self.code === unknown.code && self.version === unknown.version && equals46(self.multihash, unknown.multihash);
+    return unknown != null && self2.code === unknown.code && self2.version === unknown.version && equals46(self2.multihash, unknown.multihash);
   }
   toString(base33) {
     return format17(this, base33);
@@ -71107,23 +71107,23 @@ function parseCIDtoBytes16(source, base33) {
   switch (source[0]) {
     // CIDv0 is parsed differently
     case "Q": {
-      const decoder2 = base33 ?? base58btc17;
+      const decoder = base33 ?? base58btc17;
       return [
         base58btc17.prefix,
-        decoder2.decode(`${base58btc17.prefix}${source}`)
+        decoder.decode(`${base58btc17.prefix}${source}`)
       ];
     }
     case base58btc17.prefix: {
-      const decoder2 = base33 ?? base58btc17;
-      return [base58btc17.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base58btc17;
+      return [base58btc17.prefix, decoder.decode(source)];
     }
     case base3216.prefix: {
-      const decoder2 = base33 ?? base3216;
-      return [base3216.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base3216;
+      return [base3216.prefix, decoder.decode(source)];
     }
     case base3616.prefix: {
-      const decoder2 = base33 ?? base3616;
-      return [base3616.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base3616;
+      return [base3616.prefix, decoder.decode(source)];
     }
     default: {
       if (base33 == null) {
@@ -71191,11 +71191,11 @@ function createCodec23(name20, prefix, encode82, decode102) {
   };
 }
 var string16 = createCodec23("utf8", "u", (buf) => {
-  const decoder2 = new TextDecoder("utf8");
-  return "u" + decoder2.decode(buf);
+  const decoder = new TextDecoder("utf8");
+  return "u" + decoder.decode(buf);
 }, (str) => {
-  const encoder2 = new TextEncoder();
-  return encoder2.encode(str.substring(1));
+  const encoder = new TextEncoder();
+  return encoder.encode(str.substring(1));
 });
 var ascii16 = createCodec23("ascii", "a", (buf) => {
   let string19 = "a";
@@ -72518,8 +72518,8 @@ var Decoder19 = class {
       throw Error("Can only multibase decode strings");
     }
   }
-  or(decoder2) {
-    return or20(this, decoder2);
+  or(decoder) {
+    return or20(this, decoder);
   }
 };
 var ComposedDecoder18 = class {
@@ -72527,14 +72527,14 @@ var ComposedDecoder18 = class {
   constructor(decoders5) {
     this.decoders = decoders5;
   }
-  or(decoder2) {
-    return or20(this, decoder2);
+  or(decoder) {
+    return or20(this, decoder);
   }
   decode(input) {
     const prefix = input[0];
-    const decoder2 = this.decoders[prefix];
-    if (decoder2 != null) {
-      return decoder2.decode(input);
+    const decoder = this.decoders[prefix];
+    if (decoder != null) {
+      return decoder.decode(input);
     } else {
       throw RangeError(`Unable to decode multibase string ${JSON.stringify(input)}, only inputs prefixed with ${Object.keys(this.decoders)} are supported`);
     }
@@ -73231,9 +73231,9 @@ var CID17 = class _CID {
   equals(other) {
     return _CID.equals(this, other);
   }
-  static equals(self, other) {
+  static equals(self2, other) {
     const unknown = other;
-    return unknown != null && self.code === unknown.code && self.version === unknown.version && equals48(self.multihash, unknown.multihash);
+    return unknown != null && self2.code === unknown.code && self2.version === unknown.version && equals48(self2.multihash, unknown.multihash);
   }
   toString(base33) {
     return format18(this, base33);
@@ -73410,23 +73410,23 @@ function parseCIDtoBytes17(source, base33) {
   switch (source[0]) {
     // CIDv0 is parsed differently
     case "Q": {
-      const decoder2 = base33 ?? base58btc18;
+      const decoder = base33 ?? base58btc18;
       return [
         base58btc18.prefix,
-        decoder2.decode(`${base58btc18.prefix}${source}`)
+        decoder.decode(`${base58btc18.prefix}${source}`)
       ];
     }
     case base58btc18.prefix: {
-      const decoder2 = base33 ?? base58btc18;
-      return [base58btc18.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base58btc18;
+      return [base58btc18.prefix, decoder.decode(source)];
     }
     case base3217.prefix: {
-      const decoder2 = base33 ?? base3217;
-      return [base3217.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base3217;
+      return [base3217.prefix, decoder.decode(source)];
     }
     case base3617.prefix: {
-      const decoder2 = base33 ?? base3617;
-      return [base3617.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base3617;
+      return [base3617.prefix, decoder.decode(source)];
     }
     default: {
       if (base33 == null) {
@@ -73494,11 +73494,11 @@ function createCodec25(name20, prefix, encode82, decode102) {
   };
 }
 var string17 = createCodec25("utf8", "u", (buf) => {
-  const decoder2 = new TextDecoder("utf8");
-  return "u" + decoder2.decode(buf);
+  const decoder = new TextDecoder("utf8");
+  return "u" + decoder.decode(buf);
 }, (str) => {
-  const encoder2 = new TextEncoder();
-  return encoder2.encode(str.substring(1));
+  const encoder = new TextEncoder();
+  return encoder.encode(str.substring(1));
 });
 var ascii17 = createCodec25("ascii", "a", (buf) => {
   let string19 = "a";
@@ -73815,8 +73815,8 @@ var Decoder20 = class {
       throw Error("Can only multibase decode strings");
     }
   }
-  or(decoder2) {
-    return or21(this, decoder2);
+  or(decoder) {
+    return or21(this, decoder);
   }
 };
 var ComposedDecoder19 = class {
@@ -73824,14 +73824,14 @@ var ComposedDecoder19 = class {
   constructor(decoders5) {
     this.decoders = decoders5;
   }
-  or(decoder2) {
-    return or21(this, decoder2);
+  or(decoder) {
+    return or21(this, decoder);
   }
   decode(input) {
     const prefix = input[0];
-    const decoder2 = this.decoders[prefix];
-    if (decoder2 != null) {
-      return decoder2.decode(input);
+    const decoder = this.decoders[prefix];
+    if (decoder != null) {
+      return decoder.decode(input);
     } else {
       throw RangeError(`Unable to decode multibase string ${JSON.stringify(input)}, only inputs prefixed with ${Object.keys(this.decoders)} are supported`);
     }
@@ -74496,9 +74496,9 @@ var CID18 = class _CID {
   equals(other) {
     return _CID.equals(this, other);
   }
-  static equals(self, other) {
+  static equals(self2, other) {
     const unknown = other;
-    return unknown != null && self.code === unknown.code && self.version === unknown.version && equals50(self.multihash, unknown.multihash);
+    return unknown != null && self2.code === unknown.code && self2.version === unknown.version && equals50(self2.multihash, unknown.multihash);
   }
   toString(base33) {
     return format19(this, base33);
@@ -74675,23 +74675,23 @@ function parseCIDtoBytes18(source, base33) {
   switch (source[0]) {
     // CIDv0 is parsed differently
     case "Q": {
-      const decoder2 = base33 ?? base58btc19;
+      const decoder = base33 ?? base58btc19;
       return [
         base58btc19.prefix,
-        decoder2.decode(`${base58btc19.prefix}${source}`)
+        decoder.decode(`${base58btc19.prefix}${source}`)
       ];
     }
     case base58btc19.prefix: {
-      const decoder2 = base33 ?? base58btc19;
-      return [base58btc19.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base58btc19;
+      return [base58btc19.prefix, decoder.decode(source)];
     }
     case base3218.prefix: {
-      const decoder2 = base33 ?? base3218;
-      return [base3218.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base3218;
+      return [base3218.prefix, decoder.decode(source)];
     }
     case base3618.prefix: {
-      const decoder2 = base33 ?? base3618;
-      return [base3618.prefix, decoder2.decode(source)];
+      const decoder = base33 ?? base3618;
+      return [base3618.prefix, decoder.decode(source)];
     }
     default: {
       if (base33 == null) {
@@ -74764,11 +74764,11 @@ function createCodec26(name20, prefix, encode82, decode102) {
   };
 }
 var string18 = createCodec26("utf8", "u", (buf) => {
-  const decoder2 = new TextDecoder("utf8");
-  return "u" + decoder2.decode(buf);
+  const decoder = new TextDecoder("utf8");
+  return "u" + decoder.decode(buf);
 }, (str) => {
-  const encoder2 = new TextEncoder();
-  return encoder2.encode(str.substring(1));
+  const encoder = new TextEncoder();
+  return encoder.encode(str.substring(1));
 });
 var ascii18 = createCodec26("ascii", "a", (buf) => {
   let string19 = "a";
@@ -75504,9 +75504,9 @@ var ContentFetching = class {
     } catch (err) {
       this.log("error getting local value for %b", key, err);
     }
-    const self = this;
+    const self2 = this;
     const getValueQuery = async function* ({ peer, signal, path }) {
-      for await (const event of self.peerRouting.getValueOrPeers(peer.id, key, {
+      for await (const event of self2.peerRouting.getValueOrPeers(peer.id, key, {
         ...options,
         signal,
         path
@@ -75603,22 +75603,22 @@ var ContentRouting = class {
       ]
     };
     let sent = 0;
-    const self = this;
+    const self2 = this;
     async function* publishProviderRecord(event) {
       try {
-        self.log("sending provider record for %s to %p", key, event.peer.id);
-        for await (const addProviderEvent of self.network.sendMessage(event.peer.id, msg, {
+        self2.log("sending provider record for %s to %p", key, event.peer.id);
+        for await (const addProviderEvent of self2.network.sendMessage(event.peer.id, msg, {
           ...options,
           path: event.path
         })) {
           if (addProviderEvent.name === "PEER_RESPONSE") {
-            self.log("sent provider record for %s to %p", key, event.peer.id);
+            self2.log("sent provider record for %s to %p", key, event.peer.id);
             sent++;
           }
           yield addProviderEvent;
         }
       } catch (err) {
-        self.log.error("error sending provide record to peer %p - %e", event.peer.id, err);
+        self2.log.error("error sending provide record to peer %p - %e", event.peer.id, err);
         yield queryErrorEvent({
           from: event.peer.id,
           error: err,
@@ -75669,7 +75669,7 @@ var ContentRouting = class {
     const toFind = this.routingTable.kBucketSize;
     let found = 0;
     const target = key.multihash.bytes;
-    const self = this;
+    const self2 = this;
     this.log("findProviders %c", key);
     const provs = await this.providers.getProviders(key, options);
     if (provs.length > 0) {
@@ -75719,7 +75719,7 @@ var ContentRouting = class {
         type: MessageType.GET_PROVIDERS,
         key: target
       };
-      yield* self.network.sendRequest(peer.id, request, {
+      yield* self2.network.sendRequest(peer.id, request, {
         ...options,
         signal,
         path
@@ -76209,13 +76209,13 @@ var PeerRouting = class {
     }
     let foundPeer = false;
     if (options.useNetwork !== false) {
-      const self = this;
+      const self2 = this;
       const findPeerQuery = async function* ({ peer, signal, path }) {
         const request = {
           type: MessageType.FIND_NODE,
           key: id.toMultihash().bytes
         };
-        for await (const event of self.network.sendRequest(peer.id, request, {
+        for await (const event of self2.network.sendRequest(peer.id, request, {
           ...options,
           signal,
           path
@@ -76252,14 +76252,14 @@ var PeerRouting = class {
     this.log("getClosestPeers to %b", key);
     const kadId = await convertBuffer(key, options);
     const peers = new PeerDistanceList(kadId, this.routingTable.kBucketSize);
-    const self = this;
+    const self2 = this;
     const getCloserPeersQuery = async function* ({ peer, path, peerKadId, signal }) {
-      self.log("getClosestPeers asking %p", peer.id);
+      self2.log("getClosestPeers asking %p", peer.id);
       const request = {
         type: MessageType.FIND_NODE,
         key
       };
-      yield* self.network.sendRequest(peer.id, request, {
+      yield* self2.network.sendRequest(peer.id, request, {
         ...options,
         signal,
         path
@@ -95451,43 +95451,11 @@ var BOOTSTRAP_LIST = [
   "/dnsaddr/bootstrap.libp2p.io/p2p/QmbLHAnMoJPWSCR5Zhtx6BHJX9KiKNN6tpvbUcqanj75Nb",
   "/dnsaddr/bootstrap.libp2p.io/p2p/QmcZf59bWwK5XFi76CZX8cbJ4BhTzzA3gU1ZjYZcYW3dwt"
 ];
-var encoder = new TextEncoder();
-var decoder = new TextDecoder();
-function peerIdString(peerId) {
-  return peerId?.toString?.() ?? String(peerId);
-}
-function dhtRecordKey(groupName2, peerId) {
-  return encoder.encode(`cypherlink:group:${groupName2}:${peerId}`);
-}
-function addPeer(node, peerId, nickname2 = "unknown") {
-  if (!peerId || peerId === peerIdString(node.peerId)) return;
-  const id = peerIdString(peerId);
-  const existing = node._peers[id];
-  if (existing) {
-    if (nickname2 && nickname2 !== "unknown") existing.nickname = nickname2;
-    return;
-  }
-  node._peers[id] = { id, nickname: nickname2, hasCam: false };
-  node._onPeerFound?.(node._peers[id]);
-}
-function handlePubsubMessage(node, topic, event) {
-  if (event.detail.topic !== topic) return;
-  const senderId = peerIdString(event.detail.from);
-  if (!senderId || senderId === peerIdString(node.peerId)) return;
-  let data;
-  try {
-    data = JSON.parse(decoder.decode(event.detail.data));
-  } catch {
-    return;
-  }
-  if (data?.from && peerIdString(data.from) !== senderId) return;
-  addPeer(node, senderId, data?.nickname || "unknown");
-  node._onMessage?.(data, senderId);
+var DHT_PREFIX = "cypherlink";
+function groupKey(groupName2) {
+  return new TextEncoder().encode(`${DHT_PREFIX}:group:${groupName2}`);
 }
 async function createNode(groupName2) {
-  if (!groupName2 || typeof groupName2 !== "string") {
-    throw new TypeError("A non-empty group name is required.");
-  }
   const node = await createLibp2p({
     addresses: {
       listen: ["/webrtc", "/p2p-circuit"]
@@ -95499,6 +95467,9 @@ async function createNode(groupName2) {
     ],
     connectionEncrypters: [noise()],
     streamMuxers: [yamux()],
+    connectionGater: {
+      denyDialMultiaddr: async () => false
+    },
     peerDiscovery: [
       bootstrap({
         list: BOOTSTRAP_LIST,
@@ -95512,44 +95483,108 @@ async function createNode(groupName2) {
         allowPublishToOwnTopic: true
       }),
       dht: kadDHT({
-        clientMode: false
+        clientMode: false,
+        validators: {
+          [DHT_PREFIX]: async () => true
+        },
+        selectors: {
+          [DHT_PREFIX]: () => true
+        }
       })
     }
   });
   const topic = `cypherlink/${groupName2}`;
-  node._peers = /* @__PURE__ */ Object.create(null);
+  await node.services.pubsub.join(topic);
+  node._peers = {};
   node._groupName = groupName2;
-  const onPubsubMessage = (event) => handlePubsubMessage(node, topic, event);
-  node.services.pubsub.addEventListener("message", onPubsubMessage);
-  node._removePubsubListener = () => node.services.pubsub.removeEventListener("message", onPubsubMessage);
-  node.services.pubsub.subscribe(topic);
-  try {
-    const peerInfo = {
-      id: peerIdString(node.peerId),
-      addresses: node.getMultiaddrs().map((address) => address.toString()),
-      nickname: ""
-    };
-    await node.services.dht.put(
-      dhtRecordKey(groupName2, peerInfo.id),
-      encoder.encode(JSON.stringify(peerInfo))
-    );
-  } catch (error) {
-    console.warn("[Cypherlink] DHT publish failed:", error);
+  node.services.pubsub.subscribe(topic, (msg) => {
+    const data = JSON.parse(new TextDecoder().decode(msg.data));
+    const senderId = msg.from ? msg.from.toString ? msg.from.toString() : msg.from : null;
+    if (senderId && senderId !== node.peerId.id) {
+      if (!node._peers[senderId]) {
+        node._peers[senderId] = { id: senderId, nickname: "unknown", hasCam: false };
+        if (node._onPeerFound) node._onPeerFound(node._peers[senderId]);
+      }
+    }
+    if (node._onMessage) node._onMessage(data, senderId);
+  });
+  const existingMembers = await dhtGetGroupMembers(node, groupName2);
+  for (const member of existingMembers) {
+    if (member.id === node.peerId.id) continue;
+    try {
+      await node.dial(member.id);
+      if (!node._peers[member.id]) {
+        node._peers[member.id] = { id: member.id, nickname: member.nickname || "unknown", hasCam: false };
+        if (node._onPeerFound) node._onPeerFound(node._peers[member.id]);
+      }
+    } catch (e) {
+      console.warn(`[Cypherlink] Could not dial ${member.id.slice(0, 8)}...`);
+    }
   }
+  await dhtAddToGroup(node, groupName2, "");
   try {
-    await node.services.pubsub.publish(
-      topic,
-      encoder.encode(JSON.stringify({
-        type: "hello",
-        from: peerIdString(node.peerId),
-        nickname: "",
-        ts: Date.now()
-      }))
-    );
-  } catch (error) {
-    console.warn("[Cypherlink] Presence announcement failed:", error);
+    const hello = { type: "hello", from: node.peerId.id, nickname: "", ts: Date.now() };
+    await node.services.pubsub.publish(topic, new TextEncoder().encode(JSON.stringify(hello)));
+  } catch (e) {
   }
+  node._announceInterval = setInterval(async () => {
+    try {
+      await dhtAddToGroup(node, groupName2, node._nickname || "");
+      const hello = { type: "hello", from: node.peerId.id, nickname: node._nickname || "", ts: Date.now() };
+      await node.services.pubsub.publish(topic, new TextEncoder().encode(JSON.stringify(hello)));
+    } catch (e) {
+    }
+  }, 2e4);
   return { node, topic };
+}
+async function dhtGetGroupMembers(node, groupName2) {
+  const key = groupKey(groupName2);
+  try {
+    for await (const event of node.services.dht.get(key)) {
+      if (event.type === "Value" && event.value) {
+        const data = JSON.parse(new TextDecoder().decode(event.value));
+        if (Array.isArray(data)) return data;
+      }
+    }
+  } catch (e) {
+  }
+  return [];
+}
+async function dhtAddToGroup(node, groupName2, nickname2) {
+  const key = groupKey(groupName2);
+  let members = await dhtGetGroupMembers(node, groupName2);
+  members = members.filter((m2) => m2.id !== node.peerId.id);
+  members.push({
+    id: node.peerId.id,
+    addresses: node.getMultiaddrs().map((a) => a.toString()),
+    nickname: nickname2,
+    ts: Date.now()
+  });
+  if (members.length > 100) members = members.slice(-100);
+  try {
+    for await (const _ of node.services.dht.put(key, new TextEncoder().encode(JSON.stringify(members)))) {
+    }
+  } catch (e) {
+    console.warn("[Cypherlink] DHT put failed:", e.message);
+  }
+}
+async function dhtRemoveFromGroup(node, groupName2) {
+  const key = groupKey(groupName2);
+  let members = await dhtGetGroupMembers(node, groupName2);
+  members = members.filter((m2) => m2.id !== node.peerId.id);
+  if (members.length === 0) {
+    try {
+      for await (const _ of node.services.dht.remove(key)) {
+      }
+    } catch (e) {
+    }
+  } else {
+    try {
+      for await (const _ of node.services.dht.put(key, new TextEncoder().encode(JSON.stringify(members)))) {
+      }
+    } catch (e) {
+    }
+  }
 }
 function setMessageHandler(node, handler) {
   node._onMessage = handler;
@@ -95559,54 +95594,25 @@ function setPeerFoundHandler(node, handler) {
 }
 async function sendMessage(node, topic, payload) {
   try {
-    return await node.services.pubsub.publish(
-      topic,
-      encoder.encode(JSON.stringify(payload))
-    );
-  } catch (error) {
-    console.warn("[Cypherlink] Message publish failed:", error);
-    throw error;
+    await node.services.pubsub.publish(topic, new TextEncoder().encode(JSON.stringify(payload)));
+  } catch (e) {
   }
 }
 async function updateNickname(node, groupName2, nickname2) {
-  const id = peerIdString(node.peerId);
+  node._nickname = nickname2;
+  await dhtAddToGroup(node, groupName2, nickname2);
+  const msg = { type: "hello", from: node.peerId.id, nickname: nickname2, ts: Date.now() };
   try {
-    const peerInfo = {
-      id,
-      addresses: node.getMultiaddrs().map((address) => address.toString()),
-      nickname: nickname2
-    };
-    await node.services.dht.put(
-      dhtRecordKey(groupName2, id),
-      encoder.encode(JSON.stringify(peerInfo))
-    );
-  } catch (error) {
-    console.warn("[Cypherlink] DHT nickname update failed:", error);
-  }
-  try {
-    await node.services.pubsub.publish(
-      `cypherlink/${groupName2}`,
-      encoder.encode(JSON.stringify({
-        type: "hello",
-        from: id,
-        nickname: nickname2,
-        ts: Date.now()
-      }))
-    );
-  } catch (error) {
-    console.warn("[Cypherlink] Nickname announcement failed:", error);
+    await node.services.pubsub.publish(`cypherlink/${groupName2}`, new TextEncoder().encode(JSON.stringify(msg)));
+  } catch (e) {
   }
 }
-async function stopNode(node) {
-  if (!node) return;
-  node._removePubsubListener?.();
-  try {
-    if (node._groupName) {
-      node.services.pubsub.unsubscribe(`cypherlink/${node._groupName}`);
-    }
-  } catch {
+function stopNode(node) {
+  if (node._announceInterval) clearInterval(node._announceInterval);
+  if (node._groupName) {
+    dhtRemoveFromGroup(node, node._groupName);
   }
-  await node.stop();
+  node.stop();
 }
 
 // web/app.js
@@ -95618,15 +95624,11 @@ var meshTopic = null;
 var localStream = null;
 var lastNick = null;
 var lastTs = 0;
-var activeVideoPeer = null;
-var videoPcs = /* @__PURE__ */ Object.create(null);
-var deletingData = false;
 var canvas = document.getElementById("matrix");
-var ctx = canvas?.getContext("2d");
-var cols = 0;
-var drops = [];
+var ctx = canvas.getContext("2d");
+var cols;
+var drops;
 function initMatrix() {
-  if (!canvas || !ctx) return;
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
   cols = Math.floor(canvas.width / 14);
@@ -95635,46 +95637,30 @@ function initMatrix() {
 initMatrix();
 window.addEventListener("resize", initMatrix);
 (function drawMatrix() {
-  if (ctx && canvas) {
-    ctx.fillStyle = "rgba(0, 0, 0, 0.04)";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.font = "14px monospace";
-    for (let i = 0; i < drops.length; i++) {
-      ctx.fillStyle = `rgba(0, ${120 + Math.random() * 80}, 0, 0.8)`;
-      ctx.fillText(
-        String.fromCharCode(33 + Math.floor(Math.random() * 93)),
-        i * 14,
-        drops[i] * 14
-      );
-      if (drops[i] * 14 > canvas.height && Math.random() > 0.975) {
-        drops[i] = 0;
-      }
-      drops[i]++;
-    }
+  ctx.fillStyle = "rgba(0, 0, 0, 0.04)";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.font = "14px monospace";
+  for (let i = 0; i < drops.length; i++) {
+    ctx.fillStyle = `rgba(0, ${120 + Math.random() * 80}, 0, 0.8)`;
+    ctx.fillText(
+      String.fromCharCode(33 + Math.floor(Math.random() * 93)),
+      i * 14,
+      drops[i] * 14
+    );
+    if (drops[i] * 14 > canvas.height && Math.random() > 0.975) drops[i] = 0;
+    drops[i]++;
   }
   requestAnimationFrame(drawMatrix);
 })();
 var CypherlinkCrypto = class {
   constructor(inviteKey) {
-    this.ready = this._derive(inviteKey);
-    this._key = null;
+    this._derive(inviteKey);
   }
   async _derive(key) {
     const ikm = new TextEncoder().encode(key);
-    const base33 = await crypto.subtle.importKey(
-      "raw",
-      ikm,
-      "HKDF",
-      false,
-      ["deriveKey"]
-    );
-    this._key = await crypto.subtle.deriveKey(
-      {
-        name: "HKDF",
-        hash: "SHA-256",
-        salt: new Uint8Array(32),
-        info: new TextEncoder().encode("cypherlink-v1")
-      },
+    const base33 = await self.crypto.subtle.importKey("raw", ikm, "HKDF", false, ["deriveKey"]);
+    this._key = await self.crypto.subtle.deriveKey(
+      { name: "HKDF", hash: "SHA-256", salt: new Uint8Array(32), info: new TextEncoder().encode("cypherlink-v1") },
       base33,
       { name: "AES-GCM", length: 256 },
       false,
@@ -95682,85 +95668,43 @@ var CypherlinkCrypto = class {
     );
   }
   async encrypt(plaintext) {
-    await this.ready;
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const ciphertext = await crypto.subtle.encrypt(
-      { name: "AES-GCM", iv },
-      this._key,
-      new TextEncoder().encode(plaintext)
-    );
+    const iv = self.crypto.getRandomValues(new Uint8Array(12));
+    const ct = await self.crypto.subtle.encrypt({ name: "AES-GCM", iv }, this._key, new TextEncoder().encode(plaintext));
     return {
-      iv: bytesToBase64(iv),
-      ct: bytesToBase64(new Uint8Array(ciphertext))
+      iv: btoa(String.fromCharCode(...iv)),
+      ct: btoa(String.fromCharCode(...new Uint8Array(ct)))
     };
   }
   async decrypt(ivB64, ctB64) {
-    await this.ready;
-    const iv = base64ToBytes(ivB64);
-    const ciphertext = base64ToBytes(ctB64);
-    const plaintext = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv },
-      this._key,
-      ciphertext
-    );
-    return new TextDecoder().decode(plaintext);
+    const iv = Uint8Array.from(atob(ivB64), (c) => c.charCodeAt(0));
+    const ct = Uint8Array.from(atob(ctB64), (c) => c.charCodeAt(0));
+    const pt = await self.crypto.subtle.decrypt({ name: "AES-GCM", iv }, this._key, ct);
+    return new TextDecoder().decode(pt);
   }
 };
-function bytesToBase64(bytes) {
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary);
-}
-function base64ToBytes(value3) {
-  return Uint8Array.from(atob(value3), (char) => char.charCodeAt(0));
-}
 async function handleIncoming(data, senderId) {
-  if (!data || !meshNode) return;
   if (data.type === "msg") {
     try {
       const text = await groupCrypto.decrypt(data.iv, data.ct);
-      if (data.sender !== nickname) appendMessage(data.sender || "unknown", text, false);
-    } catch (error) {
-      console.error("[Cypherlink] Decrypt failed:", error);
+      if (data.sender !== nickname) {
+        appendMessage(data.sender, text, false);
+      }
+    } catch (e) {
+      console.error("[Cypherlink] Decrypt failed:", e);
     }
-    return;
-  }
-  if (data.type === "hello") {
-    if (senderId && meshNode._peers?.[senderId]) {
+  } else if (data.type === "hello") {
+    if (senderId && meshNode._peers[senderId]) {
       meshNode._peers[senderId].nickname = data.nickname || "unknown";
       updatePeerCount();
-      updateCamList();
     }
-    return;
-  }
-  if (data.type === "leave") {
-    if (senderId) {
-      const pc = videoPcs[senderId];
-      if (pc) {
-        pc.close();
-        delete videoPcs[senderId];
-      }
-      if (meshNode._peers?.[senderId]) delete meshNode._peers[senderId];
-      if (activeVideoPeer === senderId) {
-        activeVideoPeer = null;
-        clearCircle();
-      }
-      updatePeerCount();
-      updateCamList();
-      appendMessage(null, null, false, `${data.nickname || "A member"} left the group`);
-    }
-    return;
-  }
-  if (data.type === "cam_on") {
-    if (senderId && meshNode._peers?.[senderId]) {
+  } else if (data.type === "cam_on") {
+    if (senderId && meshNode._peers[senderId]) {
       meshNode._peers[senderId].hasCam = true;
       updateCamList();
-      await sendVideoOffer(senderId);
+      sendVideoOffer(senderId);
     }
-    return;
-  }
-  if (data.type === "cam_off") {
-    if (senderId && meshNode._peers?.[senderId]) {
+  } else if (data.type === "cam_off") {
+    if (senderId && meshNode._peers[senderId]) {
       meshNode._peers[senderId].hasCam = false;
       meshNode._peers[senderId].stream = null;
       const pc = videoPcs[senderId];
@@ -95774,93 +95718,87 @@ async function handleIncoming(data, senderId) {
       }
       updateCamList();
     }
-    return;
-  }
-  if (data.type === "vid_sdp") {
-    if (data.to && data.to !== meshNode.peerId.toString()) return;
-    await handleVideoSignal(data, senderId);
-    return;
-  }
-  if (data.type === "vid_ice") {
-    if (data.to && data.to !== meshNode.peerId.toString()) return;
+  } else if (data.type === "vid_sdp") {
+    handleVideoSignal(data, senderId);
+  } else if (data.type === "vid_ice") {
     const pc = videoPcs[senderId];
     if (pc) {
       try {
         await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
-      } catch (error) {
-        console.warn("[Cypherlink] ICE candidate failed:", error);
+      } catch (e) {
       }
     }
   }
 }
+var activeVideoPeer = null;
+var videoPcs = {};
 function showVideoInCircle(stream) {
   const video = document.getElementById("circle-video");
-  const circle = document.getElementById("video-circle");
-  if (video && circle) {
+  if (video) {
     video.srcObject = stream;
-    circle.style.display = "block";
+    document.getElementById("video-circle").style.display = "block";
   }
 }
 function clearCircle() {
   const video = document.getElementById("circle-video");
-  const circle = document.getElementById("video-circle");
-  if (video) video.srcObject = null;
-  if (circle) circle.style.display = "none";
+  if (video) {
+    video.srcObject = null;
+    document.getElementById("video-circle").style.display = "none";
+  }
 }
 function updateCamList() {
   const list = document.getElementById("cam-list");
-  if (!list || !meshNode) return;
-  list.replaceChildren();
+  if (!list) return;
+  list.innerHTML = "";
   if (localStream) {
-    const button = document.createElement("span");
-    button.className = "cam-name self";
-    button.textContent = nickname;
-    button.onclick = () => {
+    const btn = document.createElement("span");
+    btn.className = "cam-name self";
+    btn.textContent = nickname;
+    btn.onclick = () => {
       activeVideoPeer = "self";
       showVideoInCircle(localStream);
     };
-    list.appendChild(button);
+    list.appendChild(btn);
   }
-  for (const [peerId, peer] of Object.entries(meshNode._peers || {})) {
+  for (const [pid, peer] of Object.entries(meshNode._peers)) {
     if (peer.hasCam && peer.stream) {
-      const button = document.createElement("span");
-      button.className = "cam-name";
-      button.textContent = peer.nickname || "???";
-      button.onclick = () => {
-        activeVideoPeer = peerId;
+      const btn = document.createElement("span");
+      btn.className = "cam-name";
+      btn.textContent = peer.nickname || "???";
+      btn.onclick = () => {
+        activeVideoPeer = pid;
         showVideoInCircle(peer.stream);
       };
-      list.appendChild(button);
+      list.appendChild(btn);
     }
   }
   const circle = document.getElementById("video-circle");
   if (circle) {
-    const hasCamera = Boolean(localStream) || Object.values(meshNode._peers || {}).some((peer) => peer.hasCam);
-    circle.style.display = hasCamera ? "flex" : "none";
+    const hasCam = localStream || Object.values(meshNode._peers).some((p) => p.hasCam);
+    circle.style.display = hasCam ? "flex" : "none";
   }
 }
 async function createVideoConnection(peerId) {
   const pc = new RTCPeerConnection({
     iceServers: [
       { urls: "stun:stun.l.google.com:19302" },
-      // Replace localhost with a publicly reachable TURN server for remote users.
       { urls: "turn:localhost:3478", username: "cypherlink", credential: "cypherlink123" }
     ]
   });
   videoPcs[peerId] = pc;
-  pc.onicecandidate = (event) => {
-    if (event.candidate && meshNode && meshTopic) {
+  pc.onicecandidate = (e) => {
+    if (e.candidate) {
       sendMessage(meshNode, meshTopic, {
         type: "vid_ice",
         to: peerId,
-        from: meshNode.peerId.toString(),
-        candidate: event.candidate
+        from: meshNode.peerId.id,
+        candidate: e.candidate
       });
     }
   };
-  pc.ontrack = (event) => {
-    const stream = event.streams[0];
-    if (stream && meshNode?._peers?.[peerId]) {
+  pc.ontrack = (e) => {
+    const stream = e.streams[0];
+    if (stream && meshNode._peers[peerId]) {
       meshNode._peers[peerId].stream = stream;
       meshNode._peers[peerId].hasCam = true;
       updateCamList();
@@ -95870,262 +95808,169 @@ async function createVideoConnection(peerId) {
   return pc;
 }
 async function sendVideoOffer(peerId) {
-  if (!meshNode || !meshTopic) return;
   let pc = videoPcs[peerId];
   if (!pc) pc = await createVideoConnection(peerId);
-  if (localStream && pc.getSenders().length === 0) {
-    localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
+  if (localStream) {
+    localStream.getTracks().forEach((t) => pc.addTrack(t, localStream));
   }
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer);
-  await sendMessage(meshNode, meshTopic, {
+  sendMessage(meshNode, meshTopic, {
     type: "vid_sdp",
     to: peerId,
-    from: meshNode.peerId.toString(),
+    from: meshNode.peerId.id,
     sdp: pc.localDescription
   });
 }
 async function handleVideoSignal(data, senderId) {
-  if (!senderId || !meshNode) return;
   let pc = videoPcs[senderId];
   if (!pc) pc = await createVideoConnection(senderId);
   await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
   if (data.sdp.type === "offer") {
-    if (localStream && pc.getSenders().length === 0) {
-      localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
-    }
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
-    await sendMessage(meshNode, meshTopic, {
+    sendMessage(meshNode, meshTopic, {
       type: "vid_sdp",
       to: senderId,
-      from: meshNode.peerId.toString(),
+      from: meshNode.peerId.id,
       sdp: pc.localDescription
     });
   }
 }
-async function toggleVideo() {
-  const button = document.getElementById("video-btn");
-  if (!button || !meshNode) return;
+function toggleVideo() {
+  const btn = document.getElementById("video-btn");
   if (localStream) {
-    localStream.getTracks().forEach((track) => track.stop());
+    localStream.getTracks().forEach((t) => t.stop());
     localStream = null;
-    button.classList.remove("active");
-    button.textContent = "CAM";
-    await sendMessage(meshNode, meshTopic, {
-      type: "cam_off",
-      from: meshNode.peerId.toString()
-    });
+    btn.classList.remove("active");
+    btn.textContent = "CAM";
+    sendMessage(meshNode, meshTopic, { type: "cam_off", from: meshNode.peerId.id });
     if (activeVideoPeer === "self") {
       activeVideoPeer = null;
       clearCircle();
     }
     updateCamList();
-    return;
-  }
-  try {
-    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    button.classList.add("active");
-    button.textContent = "STOP";
-    activeVideoPeer = "self";
-    showVideoInCircle(localStream);
-    await sendMessage(meshNode, meshTopic, {
-      type: "cam_on",
-      from: meshNode.peerId.toString(),
-      nickname
+  } else {
+    navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: true
+    }).then((stream) => {
+      localStream = stream;
+      btn.classList.add("active");
+      btn.textContent = "STOP";
+      activeVideoPeer = "self";
+      showVideoInCircle(stream);
+      sendMessage(meshNode, meshTopic, { type: "cam_on", from: meshNode.peerId.id, nickname });
+      for (const pid of Object.keys(meshNode._peers)) {
+        sendVideoOffer(pid);
+      }
+      updateCamList();
+    }).catch((e) => {
+      console.error("[Cypherlink] Camera error:", e);
+      alert("Camera access denied.");
     });
-    for (const peerId of Object.keys(meshNode._peers || {})) {
-      await sendVideoOffer(peerId);
-    }
-    updateCamList();
-  } catch (error) {
-    console.error("[Cypherlink] Camera error:", error);
-    alert("Camera access denied or unavailable.");
   }
 }
 async function sendMessageHandler() {
-  if (!meshNode || !groupCrypto) return;
   const input = document.getElementById("msg-input");
-  const text = input?.value.trim();
+  const text = input.value.trim();
   if (!text) return;
   input.value = "";
+  appendMessage(nickname, text, true);
   try {
     const { iv, ct } = await groupCrypto.encrypt(text);
-    await sendMessage(meshNode, meshTopic, {
+    sendMessage(meshNode, meshTopic, {
       type: "msg",
       sender: nickname,
       iv,
       ct,
       ts: Date.now()
     });
-    appendMessage(nickname, text, true);
-  } catch (error) {
-    console.error("[Cypherlink] Send failed:", error);
+  } catch (e) {
+    console.error("[Cypherlink] Send failed:", e);
   }
 }
 function appendMessage(nick, text, isSelf, systemText) {
   const chat = document.getElementById("chat");
-  if (!chat) return;
   const now = Date.now();
-  const time = new Date(now).toLocaleTimeString("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit"
-  });
+  const time = new Date(now).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   if (now - lastTs > 3e4 && lastTs > 0) {
-    const separator = document.createElement("div");
-    separator.className = "separator";
-    chat.appendChild(separator);
+    const sep = document.createElement("div");
+    sep.className = "separator";
+    chat.appendChild(sep);
   }
   const div = document.createElement("div");
   if (systemText) {
     div.className = "msg system";
     div.textContent = `[${time}] ${systemText}`;
+  } else if (nick === lastNick && now - lastTs < 5e3) {
+    div.className = `msg${isSelf ? " self" : ""}`;
+    div.innerHTML = `<span class="time">${time}</span><span class="text">${esc(text)}</span>`;
   } else {
     div.className = `msg${isSelf ? " self" : ""}`;
-    const timeSpan = document.createElement("span");
-    timeSpan.className = "time";
-    timeSpan.textContent = time;
-    if (nick !== lastNick || now - lastTs >= 5e3) {
-      const nickSpan = document.createElement("span");
-      nickSpan.className = "nick";
-      nickSpan.textContent = `<${nick}> `;
-      div.append(timeSpan, nickSpan);
-    } else {
-      div.appendChild(timeSpan);
-    }
-    const textSpan = document.createElement("span");
-    textSpan.className = "text";
-    textSpan.textContent = text;
-    div.appendChild(textSpan);
+    div.innerHTML = `<span class="time">${time}</span><span class="nick">&lt;${esc(nick)}&gt;</span> <span class="text">${esc(text)}</span>`;
   }
   chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
   lastNick = nick;
   lastTs = now;
 }
+function esc(s2) {
+  const d2 = document.createElement("div");
+  d2.textContent = s2;
+  return d2.innerHTML;
+}
 function updatePeerCount() {
-  const count = Object.keys(meshNode?._peers || {}).length + 1;
-  const element = document.getElementById("peer-count");
-  if (element) element.textContent = `${count} online`;
-}
-function addLeaveButton() {
-  const chatScreen = document.getElementById("chat-screen");
-  if (!chatScreen || document.getElementById("leave-delete-btn")) return;
-  const button = document.createElement("button");
-  button.id = "leave-delete-btn";
-  button.type = "button";
-  button.textContent = "LEAVE & DELETE MY DATA";
-  button.addEventListener("click", leaveAndDeleteLocalData);
-  chatScreen.appendChild(button);
-}
-async function leaveAndDeleteLocalData() {
-  if (deletingData) return;
-  if (!confirm("Leave this group and delete Cypherlink data saved by this app in this browser?")) {
-    return;
-  }
-  deletingData = true;
-  if (meshNode && meshTopic) {
-    try {
-      await sendMessage(meshNode, meshTopic, {
-        type: "leave",
-        from: meshNode.peerId.toString(),
-        nickname,
-        ts: Date.now()
-      });
-    } catch (error) {
-      console.warn("[Cypherlink] Leave announcement failed:", error);
-    }
-  }
-  if (localStream) {
-    localStream.getTracks().forEach((track) => track.stop());
-    localStream = null;
-  }
-  for (const pc of Object.values(videoPcs)) pc.close();
-  videoPcs = /* @__PURE__ */ Object.create(null);
-  clearCircle();
-  if (meshNode) {
-    try {
-      await stopNode(meshNode);
-    } catch (error) {
-      console.warn("[Cypherlink] Node shutdown failed:", error);
-    }
-  }
-  try {
-    await new Promise((resolve, reject) => {
-      const request = indexedDB.deleteDatabase("cypherlink-chat");
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
-      request.onblocked = () => reject(new Error("Close other Cypherlink tabs and retry."));
-    });
-  } catch (error) {
-    deletingData = false;
-    alert(`Could not delete local app data: ${error.message}`);
-    return;
-  }
-  groupCrypto = null;
-  meshNode = null;
-  meshTopic = null;
-  groupName = "";
-  nickname = "";
-  location.reload();
+  const count = Object.keys(meshNode._peers).length + 1;
+  document.getElementById("peer-count").textContent = `${count} online`;
 }
 document.querySelectorAll("#join-screen input").forEach((input) => {
-  input.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-      document.getElementById("join-btn")?.click();
-    }
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") document.getElementById("join-btn").click();
   });
 });
-document.getElementById("join-btn")?.addEventListener("click", async () => {
-  groupName = document.getElementById("join-group")?.value.trim() || "";
-  const groupKey = document.getElementById("join-key")?.value.trim() || "";
-  nickname = document.getElementById("join-nick")?.value.trim() || "";
-  if (!groupName || !groupKey || !nickname) {
-    const error = document.getElementById("join-error");
-    if (error) error.textContent = "All fields required.";
+document.getElementById("join-btn").addEventListener("click", async () => {
+  groupName = document.getElementById("join-group").value.trim();
+  const groupKey2 = document.getElementById("join-key").value.trim();
+  nickname = document.getElementById("join-nick").value.trim();
+  if (!groupName || !groupKey2 || !nickname) {
+    document.getElementById("join-error").textContent = "All fields required.";
     return;
   }
   try {
-    const error = document.getElementById("join-error");
-    if (error) error.textContent = "Connecting to network...";
-    groupCrypto = new CypherlinkCrypto(groupKey);
-    await groupCrypto.ready;
+    document.getElementById("join-error").textContent = "Connecting to network...";
+    groupCrypto = new CypherlinkCrypto(groupKey2);
     const result = await createNode(groupName);
     meshNode = result.node;
     meshTopic = result.topic;
     setMessageHandler(meshNode, handleIncoming);
-    setPeerFoundHandler(meshNode, () => {
+    setPeerFoundHandler(meshNode, (peer) => {
       updatePeerCount();
       appendMessage(null, null, false, "A member is in the group");
     });
-    await updateNickname(meshNode, groupName, nickname);
+    await updateNickname(meshNode, meshTopic, nickname);
     document.getElementById("join-screen").style.display = "none";
     document.getElementById("chat-screen").style.display = "flex";
     document.getElementById("group-name").textContent = `#${groupName}`;
     document.getElementById("user-name").textContent = nickname;
-    if (error) error.textContent = "";
-    addLeaveButton();
+    document.getElementById("join-error").textContent = "";
     updatePeerCount();
     appendMessage(null, null, false, `You joined #${groupName} as ${nickname}`);
-    document.getElementById("msg-input")?.focus();
-  } catch (error) {
-    console.error("[Cypherlink] Join failed:", error);
+    document.getElementById("msg-input").focus();
+  } catch (e) {
+    console.error("[Cypherlink] Join failed:", e);
     document.getElementById("join-screen").style.display = "flex";
-    const joinError = document.getElementById("join-error");
-    if (joinError) joinError.textContent = error.message || "Connection failed";
+    document.getElementById("join-error").textContent = e.message || "Connection failed";
   }
 });
-document.getElementById("send-btn")?.addEventListener("click", sendMessageHandler);
-document.getElementById("msg-input")?.addEventListener("keydown", (event) => {
-  if (event.key === "Enter") sendMessageHandler();
+document.getElementById("send-btn").addEventListener("click", sendMessageHandler);
+document.getElementById("msg-input").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") sendMessageHandler();
 });
-document.getElementById("video-btn")?.addEventListener("click", toggleVideo);
+document.getElementById("video-btn").addEventListener("click", toggleVideo);
 window.addEventListener("beforeunload", () => {
-  if (localStream) localStream.getTracks().forEach((track) => track.stop());
-  if (meshNode) {
-    stopNode(meshNode);
-  }
+  if (meshNode) stopNode(meshNode);
+  if (localStream) localStream.getTracks().forEach((t) => t.stop());
 });
 /*! Bundled license information:
 

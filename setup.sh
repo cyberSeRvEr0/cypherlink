@@ -1,87 +1,117 @@
 #!/usr/bin/env bash
-set -Eeuo pipefail
+set -e
 
-cd "$(dirname "${BASH_SOURCE[0]}")"
+echo "╔══════════════════════════════════╗"
+echo "║        CYIPHERLINK SETUP         ║"
+echo "╚══════════════════════════════════╝"
+echo ""
 
-echo "=================================="
-echo "       CYPHERLINK SETUP"
-echo "=================================="
-echo
-
-if [[ ! -f package.json || ! -f web/index.html || ! -f web/app.js ]]; then
-  echo "ERROR: Expected package.json, web/index.html, and web/app.js."
-  echo "Run this script from the Cypherlink project directory."
-  exit 1
+# --- 1. Check Python ---
+if ! command -v python3 &>/dev/null; then
+    echo "[1/4] Installing Python 3..."
+    if command -v apt &>/dev/null; then
+        sudo apt update && sudo apt install -y python3 python3-pip python3-venv python3-full
+    elif command -v brew &>/dev/null; then
+        brew install python3
+    else
+        echo "ERROR: Install Python 3.10+ manually."
+        exit 1
+    fi
+else
+    echo "[1/4] Python 3 found ✓"
 fi
 
-install_deps() {
-  if command -v apt-get >/dev/null 2>&1; then
-    local sudo_cmd=()
-    if [[ "${EUID}" -ne 0 ]]; then
-      command -v sudo >/dev/null 2>&1 || {
-        echo "ERROR: sudo is required to install system packages."
+# --- 2. Install coturn (mandatory) ---
+if ! command -v turnserver &>/dev/null; then
+    echo "[2/4] Installing TURN server..."
+    if command -v apt &>/dev/null; then
+        sudo apt update -qq
+        sudo apt install -y coturn
+        if [ $? -ne 0 ]; then
+            echo ""
+            echo "  ERROR: Could not install coturn."
+            echo "  Run manually:  sudo apt update && sudo apt install -y coturn"
+            echo "  Then re-run:   ./setup.sh"
+            exit 1
+        fi
+    elif command -v brew &>/dev/null; then
+        brew install coturn
+        if [ $? -ne 0 ]; then
+            echo ""
+            echo "  ERROR: Could not install coturn."
+            echo "  Run manually:  brew install coturn"
+            echo "  Then re-run:   ./setup.sh"
+            exit 1
+        fi
+    else
+        echo ""
+        echo "  ERROR: No package manager found. Install coturn manually."
+        echo "  https://github.com/coturn/coturn"
         exit 1
-      }
-      sudo_cmd=(sudo)
     fi
 
-    "${sudo_cmd[@]}" apt-get update
-    "${sudo_cmd[@]}" apt-get install -y \
-      ca-certificates curl nodejs npm python3 coturn
+    # Configure
+    sudo tee /etc/turnserver.conf > /dev/null << 'TURNCONF'
+listening-ip=0.0.0.0
+listening-port=3478
+min-port=49152
+max-port=65535
+fingerprint
+no-multicast-peers
+no-loopback-peers
+no-cli
+no-stdout-log
+no-timestamp-log
+use-auth-secret
+static-auth-secret=cypherlink123
+realm=cypherlink.local
+TURNCONF
+    echo "TURNSERVER_ENABLED=1" | sudo tee /etc/default/coturn > /dev/null 2>&1 || true
+    sudo systemctl enable coturn 2>/dev/null || true
+    sudo systemctl restart coturn 2>/dev/null || true
+    echo "      TURN installed ✓"
+else
+    echo "[2/4] TURN server found ✓"
+    sudo systemctl restart coturn 2>/dev/null || true
+fi   
 
-  elif command -v brew >/dev/null 2>&1; then
-    brew install node python coturn
-
-  else
-    echo "ERROR: Unsupported package manager."
-    echo "Install Node.js (with npm), Python 3, and coturn manually."
-    exit 1
-  fi
-}
-
-echo "[1/4] Checking required tools..."
-if ! command -v npm >/dev/null 2>&1 ||
-   ! command -v python3 >/dev/null 2>&1 ||
-   ! command -v turnserver >/dev/null 2>&1; then
-  echo "Installing Node.js/npm, Python 3, and coturn..."
-  install_deps
+# --- 3. Firewall ---
+echo "[3/4] Configuring firewall..."
+if command -v ufw &>/dev/null; then
+    sudo ufw --force enable 2>/dev/null || true
+    sudo ufw allow 3000/tcp 2>/dev/null || true
+    sudo ufw allow 3478/tcp 2>/dev/null || true
+    sudo ufw allow 3478/udp 2>/dev/null || true
+    sudo ufw allow 49152:65535/udp 2>/dev/null || true
+    echo "      Firewall active (default deny) ✓"
 fi
 
-for tool in npm python3 turnserver; do
-  if ! command -v "$tool" >/dev/null 2>&1; then
-    echo "ERROR: $tool was not found after installation."
-    exit 1
-  fi
-done
+# --- 4. Start ---
+echo "[4/4] Starting Cypherlink..."
 
-node_major="$(node --version | sed 's/^v//' | cut -d. -f1)"
-if [[ "$node_major" -lt 20 ]]; then
-  echo "ERROR: Node.js 20 or newer is required; found $(node --version)."
-  echo "Upgrade Node.js, then run this script again."
-  exit 1
-fi
-echo "Node.js, npm, Python, and coturn found."
+pkill -f "http.server 3000" 2>/dev/null || true
+sleep 1
 
-echo
-echo "[2/4] Installing project dependencies..."
-npm install
+python3 -m http.server 3000 --directory web &
+WEB_PID=$!
 
-echo
-echo "[3/4] Building Cypherlink..."
-npm run build
+sleep 1
 
-echo
-echo "[4/4] Starting local web server..."
-if command -v xdg-open >/dev/null 2>&1; then
-  xdg-open http://localhost:3000 >/dev/null 2>&1 &
-elif command -v open >/dev/null 2>&1; then
-  open http://localhost:3000 >/dev/null 2>&1 &
+if command -v xdg-open &>/dev/null; then
+    xdg-open http://localhost:3000
+elif command -v open &>/dev/null; then
+    open http://localhost:3000
 fi
 
-echo
-echo "Cypherlink is available at http://localhost:3000"
-echo "Press Ctrl+C to stop the local web server."
-echo "coturn is installed but not configured or exposed."
-echo
+echo ""
+echo "══════════════════════════════════════"
+echo "  Cypherlink is running!"
+echo ""
+echo "  Open: http://localhost:3000"
+echo "  TURN: turn://localhost:3478"
+echo ""
+echo "  Stop: Ctrl+C"
+echo "══════════════════════════════════════"
 
-exec python3 -m http.server 3000 --bind 127.0.0.1 --directory web
+trap "kill $WEB_PID 2>/dev/null; exit" INT TERM
+wait   

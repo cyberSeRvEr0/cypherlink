@@ -11,21 +11,17 @@
 
   <!-- Join Screen -->
   <div id="join-screen">
-    <h1>CYPHERLINK</h1>
+    <h1>CYIPHERLINK</h1>
     <p class="subtitle">Encrypted P2P. No trace. No server sees your data.</p>
-
     <div class="form">
-      <label for="join-group">Group</label>
-      <input id="join-group" type="text" placeholder="group name" autocomplete="off">
-
-      <label for="join-key">Invite Key</label>
-      <input id="join-key" type="text" placeholder="key" autocomplete="off">
-
-      <label for="join-nick">Nickname</label>
-      <input id="join-nick" type="text" placeholder="your name" autocomplete="off">
-
-      <button id="join-btn" type="button">ENTER</button>
-      <p id="join-error" class="error" role="alert"></p>
+      <label>Group</label>
+      <input id="join-group" type="text" placeholder="group name" autocomplete="off" />
+      <label>Invite Key</label>
+      <input id="join-key" type="text" placeholder="key" autocomplete="off" />
+      <label>Nickname</label>
+      <input id="join-nick" type="text" placeholder="your name" autocomplete="off" />
+      <button id="join-btn">ENTER</button>
+      <p id="join-error" class="error"></p>
     </div>
   </div>
 
@@ -35,9 +31,6 @@
       <span id="group-name"></span>
       <span id="peer-count"></span>
       <span id="user-name"></span>
-      <button id="leave-delete-btn" type="button">
-        Leave and delete my data
-      </button>
     </div>
 
     <div id="video-circle" style="display:none">
@@ -45,22 +38,17 @@
         <video id="circle-video" autoplay playsinline></video>
       </div>
       <div id="cam-list"></div>
-    </div>
+    </div>   
 
     <div id="chat"></div>
 
     <div id="input-row">
-      <input
-        id="msg-input"
-        type="text"
-        placeholder="Type message..."
-        autocomplete="off"
-      >
-      <button id="video-btn" type="button" title="Share camera">CAM</button>
-      <button id="send-btn" type="button">SEND</button>
+      <input id="msg-input" type="text" placeholder="Type message..." autocomplete="off" />
+      <button id="video-btn" title="Share camera">CAM</button>
+      <button id="send-btn">SEND</button>
     </div>
   </div>
 
-  <script type="module" src="bundle.js"></script>
+  <script type="module" src="bundle.js"></script>   
 </body>
-</html>
+</html>   

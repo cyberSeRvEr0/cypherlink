@@ -242,9 +242,9 @@ function toggleVideo() {
     updateCamList();
   } else {
     navigator.mediaDevices.getUserMedia({
-      video: { width: 640, height: 480, facingMode: 'user' },
+      video: true,
       audio: true
-    }).then(stream => {
+    }).then(stream => {   
       localStream = stream;
       btn.classList.add('active');
       btn.textContent = 'STOP';

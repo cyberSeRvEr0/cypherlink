@@ -21,14 +21,35 @@ else
     echo "[1/4] Python 3 found ✓"
 fi
 
-# --- 2. Install coturn (NAT traversal) ---
+# --- 2. Install coturn (mandatory) ---
 if ! command -v turnserver &>/dev/null; then
     echo "[2/4] Installing TURN server..."
     if command -v apt &>/dev/null; then
+        sudo apt update -qq
         sudo apt install -y coturn
+        if [ $? -ne 0 ]; then
+            echo ""
+            echo "  ERROR: Could not install coturn."
+            echo "  Run manually:  sudo apt update && sudo apt install -y coturn"
+            echo "  Then re-run:   ./setup.sh"
+            exit 1
+        fi
     elif command -v brew &>/dev/null; then
         brew install coturn
+        if [ $? -ne 0 ]; then
+            echo ""
+            echo "  ERROR: Could not install coturn."
+            echo "  Run manually:  brew install coturn"
+            echo "  Then re-run:   ./setup.sh"
+            exit 1
+        fi
+    else
+        echo ""
+        echo "  ERROR: No package manager found. Install coturn manually."
+        echo "  https://github.com/coturn/coturn"
+        exit 1
     fi
+
     # Configure
     sudo tee /etc/turnserver.conf > /dev/null << 'TURNCONF'
 listening-ip=0.0.0.0
@@ -52,7 +73,7 @@ TURNCONF
 else
     echo "[2/4] TURN server found ✓"
     sudo systemctl restart coturn 2>/dev/null || true
-fi
+fi   
 
 # --- 3. Firewall ---
 echo "[3/4] Configuring firewall..."

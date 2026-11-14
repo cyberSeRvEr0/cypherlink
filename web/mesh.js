@@ -1,8 +1,9 @@
 /**
  * Cypherlink mesh — P2P via libp2p.
- * Discovery: DHT (with timeouts) + GossipSub mesh-building.
- * Messaging: GossipSub (encrypted, peer-to-peer).
- * Transport: WebRTC + circuit relay (works across all networks).
+ * Same network: mDNS (instant, local multicast)
+ * Cross-network: DHT (distributed phone book)
+ * Messaging: GossipSub
+ * Transport: WebRTC + circuit relay
  */
 import { createLibp2p } from 'libp2p';
 import { webRTC } from '@libp2p/webrtc';
@@ -15,6 +16,7 @@ import { identify } from '@libp2p/identify';
 import { ping } from '@libp2p/ping';
 import { kadDHT } from '@libp2p/kad-dht';
 import { bootstrap } from '@libp2p/bootstrap';
+import { mdns } from '@libp2p/mdns';
 
 const BOOTSTRAP_LIST = [
   '/dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN',
@@ -24,13 +26,12 @@ const BOOTSTRAP_LIST = [
 ];
 
 const DHT_PREFIX = 'cypherlink';
-const DHT_TIMEOUT = 5000; // 5 seconds
+const DHT_TIMEOUT = 5000;
 
 function groupKey(groupName) {
   return new TextEncoder().encode(`${DHT_PREFIX}:group:${groupName}`);
 }
 
-// Timeout wrapper — if DHT doesn't respond in time, resolve with fallback
 function withTimeout(promise, ms, fallback) {
   return Promise.race([
     promise,
@@ -54,6 +55,9 @@ export async function createNode(groupName) {
       denyDialMultiaddr: async () => false,
     },
     peerDiscovery: [
+      // Same network: instant discovery via multicast
+      mdns(),
+      // Cross-network: connect to public libp2p network
       bootstrap({
         list: BOOTSTRAP_LIST,
         interval: 30000,
@@ -81,7 +85,6 @@ export async function createNode(groupName) {
   const topic = `cypherlink/${groupName}`;
   await node.services.pubsub.join(topic);
 
-  // Track group peers
   node._peers = {};
   node._groupName = groupName;
   node._nickname = '';
@@ -99,14 +102,26 @@ export async function createNode(groupName) {
     if (node._onMessage) node._onMessage(data, senderId);
   });
 
-  // --- Try to find existing members via DHT (with timeout) ---
+  // When a NEW peer is discovered (via mDNS or bootstrap), dial them
+  node.addEventListener('peer:discovery', async (evt) => {
+    try {
+      const peerInfo = evt.detail;
+      if (peerInfo.id && peerInfo.id !== node.peerId.id) {
+        const id = peerInfo.id.toString ? peerInfo.id.toString() : peerInfo.id;
+        if (!node._peers[id]) {
+          await node.dial(peerInfo.id);
+        }
+      }
+    } catch (e) {}
+  });
+
+  // --- DHT: find cross-network members (with timeout) ---
   const existingMembers = await withTimeout(
     dhtGetGroupMembers(node, groupName),
     DHT_TIMEOUT,
     []
   );
 
-  // Dial any members we found
   for (const member of existingMembers) {
     if (member.id === node.peerId.id) continue;
     try {
@@ -118,16 +133,16 @@ export async function createNode(groupName) {
     } catch (e) {}
   }
 
-  // --- Add ourselves to DHT (with timeout, non-blocking) ---
+  // Add ourselves to DHT (background, non-blocking)
   dhtAddToGroup(node, groupName, '').catch(() => {});
 
-  // Announce on topic (immediate, no timeout needed)
+  // Announce on topic
   try {
     const hello = { type: 'hello', from: node.peerId.id, nickname: '', ts: Date.now() };
     await node.services.pubsub.publish(topic, new TextEncoder().encode(JSON.stringify(hello)));
   } catch (e) {}
 
-  // Periodic re-announce: keeps DHT entry alive + catches late joiners
+  // Periodic: re-announce + refresh DHT
   node._announceInterval = setInterval(async () => {
     try {
       dhtAddToGroup(node, groupName, node._nickname || '').catch(() => {});
@@ -139,68 +154,32 @@ export async function createNode(groupName) {
   return { node, topic };
 }
 
-// --- DHT helpers (all non-blocking, all with timeouts) ---
-
 async function dhtGetGroupMembers(node, groupName) {
   const key = groupKey(groupName);
   try {
-    const result = await withTimeout(
-      new Promise((resolve, reject) => {
-        (async () => {
-          try {
-            for await (const event of node.services.dht.get(key)) {
-              if (event.type === 'Value' && event.value) {
-                const data = JSON.parse(new TextDecoder().decode(event.value));
-                if (Array.isArray(data)) { resolve(data); return; }
-              }
-            }
-            resolve([]);
-          } catch (e) { resolve([]); }
-        })();
-      }),
-      DHT_TIMEOUT,
-      []
-    );
-    return result;
-  } catch (e) {
-    return [];
-  }
+    for await (const event of node.services.dht.get(key)) {
+      if (event.type === 'Value' && event.value) {
+        const data = JSON.parse(new TextDecoder().decode(event.value));
+        if (Array.isArray(data)) return data;
+      }
+    }
+  } catch (e) {}
+  return [];
 }
 
 async function dhtAddToGroup(node, groupName, nickname) {
   const key = groupKey(groupName);
-
   let members = await dhtGetGroupMembers(node, groupName);
-
-  // Remove our old entry
   members = members.filter(m => m.id !== node.peerId.id);
-
-  // Add ourselves
   members.push({
     id: node.peerId.id,
     addresses: node.getMultiaddrs().map(a => a.toString()),
     nickname,
     ts: Date.now(),
   });
-
   if (members.length > 100) members = members.slice(-100);
-
   try {
-    await withTimeout(
-      new Promise((resolve) => {
-        (async () => {
-          try {
-            for await (const _ of node.services.dht.put(key, new TextEncoder().encode(JSON.stringify(members)))) {
-              resolve(true);
-              return;
-            }
-            resolve(false);
-          } catch (e) { resolve(false); }
-        })();
-      }),
-      DHT_TIMEOUT,
-      false
-    );
+    for await (const _ of node.services.dht.put(key, new TextEncoder().encode(JSON.stringify(members)))) {}
   } catch (e) {}
 }
 
@@ -208,35 +187,14 @@ async function dhtRemoveFromGroup(node, groupName) {
   const key = groupKey(groupName);
   let members = await dhtGetGroupMembers(node, groupName);
   members = members.filter(m => m.id !== node.peerId.id);
-
   try {
     if (members.length === 0) {
-      await withTimeout(
-        new Promise((resolve) => {
-          (async () => {
-            try { for await (const _ of node.services.dht.remove(key)) { resolve(true); return; } resolve(false); }
-            catch (e) { resolve(false); }
-          })();
-        }),
-        DHT_TIMEOUT,
-        false
-      );
+      for await (const _ of node.services.dht.remove(key)) {}
     } else {
-      await withTimeout(
-        new Promise((resolve) => {
-          (async () => {
-            try { for await (const _ of node.services.dht.put(key, new TextEncoder().encode(JSON.stringify(members)))) { resolve(true); return; } resolve(false); }
-            catch (e) { resolve(false); }
-          })();
-        }),
-        DHT_TIMEOUT,
-        false
-      );
+      for await (const _ of node.services.dht.put(key, new TextEncoder().encode(JSON.stringify(members)))) {}
     }
   } catch (e) {}
 }
-
-// --- Public API ---
 
 export function setMessageHandler(node, handler) {
   node._onMessage = handler;
@@ -267,8 +225,6 @@ export async function updateNickname(node, groupName, nickname) {
 
 export function stopNode(node) {
   if (node._announceInterval) clearInterval(node._announceInterval);
-  if (node._groupName) {
-    dhtRemoveFromGroup(node, node._groupName).catch(() => {});
-  }
+  if (node._groupName) dhtRemoveFromGroup(node, node._groupName).catch(() => {});
   node.stop();
 }   

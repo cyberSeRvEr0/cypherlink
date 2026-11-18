@@ -2,13 +2,13 @@
 set -e
 
 echo "╔══════════════════════════════════╗"
-echo "║        CYIPHERLINK SETUP         ║"
+echo "║        CYPHERLINK SETUP          ║"
 echo "╚══════════════════════════════════╝"
 echo ""
 
 # --- 1. Check Python ---
 if ! command -v python3 &>/dev/null; then
-    echo "[1/4] Installing Python 3..."
+    echo "[1/6] Installing Python 3..."
     if command -v apt &>/dev/null; then
         sudo apt update && sudo apt install -y python3 python3-pip python3-venv python3-full
     elif command -v brew &>/dev/null; then
@@ -18,12 +18,36 @@ if ! command -v python3 &>/dev/null; then
         exit 1
     fi
 else
-    echo "[1/4] Python 3 found ✓"
+    echo "[1/6] Python 3 found ✓"
 fi
 
-# --- 2. Install coturn (mandatory) ---
+# --- 2. Check Node.js & npm ---
+if ! command -v npm &>/dev/null; then
+    echo "[2/6] Installing Node.js & npm..."
+    if command -v apt &>/dev/null; then
+        sudo apt update -qq
+        sudo apt install -y nodejs npm
+    elif command -v brew &>/dev/null; then
+        brew install node
+    else
+        echo "ERROR: Install Node.js 20+ and npm manually from https://nodejs.org"
+        exit 1
+    fi
+else
+    echo "[2/6] Node.js & npm found ✓"
+fi
+
+# --- 3. Install npm packages & build bundle ---
+echo "[3/6] Installing dependencies & building web bundle..."
+if [ ! -d "node_modules" ]; then
+    npm install
+fi
+npm run build
+echo "      Web bundle built ✓"
+
+# --- 4. Install coturn (mandatory) ---
 if ! command -v turnserver &>/dev/null; then
-    echo "[2/4] Installing TURN server..."
+    echo "[4/6] Installing TURN server..."
     if command -v apt &>/dev/null; then
         sudo apt update -qq
         sudo apt install -y coturn
@@ -71,26 +95,33 @@ TURNCONF
     sudo systemctl restart coturn 2>/dev/null || true
     echo "      TURN installed ✓"
 else
-    echo "[2/4] TURN server found ✓"
+    echo "[4/6] TURN server found ✓"
     sudo systemctl restart coturn 2>/dev/null || true
 fi   
 
-# --- 3. Firewall ---
-echo "[3/4] Configuring firewall..."
+# --- 5. Firewall ---
+echo "[5/6] Configuring firewall..."
 if command -v ufw &>/dev/null; then
     sudo ufw --force enable 2>/dev/null || true
     sudo ufw allow 3000/tcp 2>/dev/null || true
+    sudo ufw allow 9090/tcp 2>/dev/null || true
     sudo ufw allow 3478/tcp 2>/dev/null || true
     sudo ufw allow 3478/udp 2>/dev/null || true
     sudo ufw allow 49152:65535/udp 2>/dev/null || true
     echo "      Firewall active (default deny) ✓"
 fi
 
-# --- 4. Start ---
-echo "[4/4] Starting Cypherlink..."
+# --- 6. Start Relay & Web Server ---
+echo "[6/6] Starting Cypherlink Relay & Web UI..."
 
 pkill -f "http.server 3000" 2>/dev/null || true
+pkill -f "node relay.js" 2>/dev/null || true
 sleep 1
+
+node relay.js &
+RELAY_PID=$!
+
+sleep 2
 
 python3 -m http.server 3000 --directory web &
 WEB_PID=$!
@@ -98,20 +129,21 @@ WEB_PID=$!
 sleep 1
 
 if command -v xdg-open &>/dev/null; then
-    xdg-open http://localhost:3000
+    xdg-open http://localhost:3000 2>/dev/null || true
 elif command -v open &>/dev/null; then
-    open http://localhost:3000
+    open http://localhost:3000 2>/dev/null || true
 fi
 
 echo ""
 echo "══════════════════════════════════════"
 echo "  Cypherlink is running!"
 echo ""
-echo "  Open: http://localhost:3000"
-echo "  TURN: turn://localhost:3478"
+echo "  Open:  http://localhost:3000"
+echo "  Relay: Copy the /ip4/.../ws/p2p/... address printed above"
+echo "  TURN:  turn://localhost:3478"
 echo ""
-echo "  Stop: Ctrl+C"
+echo "  Stop:  Ctrl+C"
 echo "══════════════════════════════════════"
 
-trap "kill $WEB_PID 2>/dev/null; exit" INT TERM
-wait   
+trap "kill $WEB_PID $RELAY_PID 2>/dev/null; exit" INT TERM
+wait

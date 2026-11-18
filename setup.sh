@@ -21,28 +21,28 @@ else
     echo "[1/6] Python 3 found ✓"
 fi
 
-# --- 2. Check Node.js & npm ---
-if ! command -v npm &>/dev/null; then
-    echo "[2/6] Installing Node.js & npm..."
+# --- 2. Check Node.js 22+ & npm ---
+NODE_MAJOR=$(node -v 2>/dev/null | cut -d'.' -f1 | tr -d 'v' || echo 0)
+if [ "$NODE_MAJOR" -lt 22 ]; then
+    echo "[2/6] Installing Node.js 22 LTS..."
     if command -v apt &>/dev/null; then
-        sudo apt update -qq
-        sudo apt install -y nodejs npm
+        curl -fsSL https://nodesource.com | sudo -E bash - > /dev/null 2>&1
+        sudo apt install -y nodejs > /dev/null 2>&1
     elif command -v brew &>/dev/null; then
-        brew install node
+        brew install node@22 > /dev/null 2>&1
     else
-        echo "ERROR: Install Node.js 20+ and npm manually from https://nodejs.org"
+        echo "ERROR: Install Node.js 22+ manually from https://nodejs.org"
         exit 1
     fi
-else
-    echo "[2/6] Node.js & npm found ✓"
 fi
+echo "[2/6] Node.js $(node -v) found ✓"
 
 # --- 3. Install npm packages & build bundle ---
 echo "[3/6] Installing dependencies & building web bundle..."
 if [ ! -d "node_modules" ]; then
-    npm install
+    npm install --silent --no-fund --no-audit > /dev/null 2>&1
 fi
-npm run build
+npm run build --silent > /dev/null 2>&1
 echo "      Web bundle built ✓"
 
 # --- 4. Install coturn (mandatory) ---

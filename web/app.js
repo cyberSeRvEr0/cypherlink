@@ -1,10 +1,18 @@
 /**
  * Cypherlink — P2P encrypted chat + video via libp2p GossipSub + WebRTC.
- * No host. No meeting point. Each user is independent.
+ * No host. No database. Deterministic group+key mesh routing.
  */
 
 // ============ IMPORTS ============
-import { createNode, setMessageHandler, setPeerFoundHandler, sendMessage, updateNickname, stopNode } from './mesh.js';
+import {
+  createNode,
+  setMessageHandler,
+  setPeerFoundHandler,
+  setPeerLeftHandler,
+  sendMessage,
+  updateNickname,
+  stopNode,
+} from './mesh.js';
 
 // ============ CONFIG ============
 const MAX_MEMBERS = 100;
@@ -51,7 +59,7 @@ window.addEventListener('resize', initMatrix);
 // ============ CRYPTO (AES-256-GCM) ============
 class CypherlinkCrypto {
   constructor(inviteKey) {
-    this._derive(inviteKey);
+    this._ready = this._derive(inviteKey);
   }
   async _derive(key) {
     const ikm = new TextEncoder().encode(key);
@@ -65,6 +73,7 @@ class CypherlinkCrypto {
     );
   }
   async encrypt(plaintext) {
+    await this._ready;
     const iv = self.crypto.getRandomValues(new Uint8Array(12));
     const ct = await self.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, this._key, new TextEncoder().encode(plaintext));
     return {
@@ -73,6 +82,7 @@ class CypherlinkCrypto {
     };
   }
   async decrypt(ivB64, ctB64) {
+    await this._ready;
     const iv = Uint8Array.from(atob(ivB64), c => c.charCodeAt(0));
     const ct = Uint8Array.from(atob(ctB64), c => c.charCodeAt(0));
     const pt = await self.crypto.subtle.decrypt({ name: 'AES-GCM', iv }, this._key, ct);
@@ -82,6 +92,8 @@ class CypherlinkCrypto {
 
 // ============ MESSAGE HANDLER ============
 async function handleIncoming(data, senderId) {
+  const selfId = meshNode ? meshNode.peerId.toString() : null;
+
   if (data.type === 'msg') {
     try {
       const text = await groupCrypto.decrypt(data.iv, data.ct);
@@ -95,12 +107,15 @@ async function handleIncoming(data, senderId) {
     if (senderId && meshNode._peers[senderId]) {
       meshNode._peers[senderId].nickname = data.nickname || 'unknown';
       updatePeerCount();
+      updateCamList();
     }
   } else if (data.type === 'cam_on') {
     if (senderId && meshNode._peers[senderId]) {
       meshNode._peers[senderId].hasCam = true;
       updateCamList();
-      sendVideoOffer(senderId);
+      if (localStream) {
+        sendVideoOffer(senderId);
+      }
     }
   } else if (data.type === 'cam_off') {
     if (senderId && meshNode._peers[senderId]) {
@@ -112,11 +127,15 @@ async function handleIncoming(data, senderId) {
       updateCamList();
     }
   } else if (data.type === 'vid_sdp') {
-    handleVideoSignal(data, senderId);
+    if (!data.to || data.to === selfId) {
+      handleVideoSignal(data, senderId);
+    }
   } else if (data.type === 'vid_ice') {
-    const pc = videoPcs[senderId];
-    if (pc) {
-      try { await pc.addIceCandidate(new RTCIceCandidate(data.candidate)); } catch (e) {}
+    if (!data.to || data.to === selfId) {
+      const pc = videoPcs[senderId];
+      if (pc) {
+        try { await pc.addIceCandidate(new RTCIceCandidate(data.candidate)); } catch (e) {}
+      }
     }
   }
 }
@@ -143,7 +162,7 @@ function clearCircle() {
 
 function updateCamList() {
   const list = document.getElementById('cam-list');
-  if (!list) return;
+  if (!list || !meshNode) return;
   list.innerHTML = '';
 
   if (localStream) {
@@ -163,10 +182,9 @@ function updateCamList() {
       list.appendChild(btn);
     }
   }
-
   const circle = document.getElementById('video-circle');
   if (circle) {
-    const hasCam = localStream || Object.values(meshNode._peers).some(p => p.hasCam);
+    const hasCam = localStream || Object.values(meshNode._peers).some(p => p.hasCam && p.stream);
     circle.style.display = hasCam ? 'flex' : 'none';
   }
 }
@@ -174,7 +192,8 @@ function updateCamList() {
 async function createVideoConnection(peerId) {
   const pc = new RTCPeerConnection({
     iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:://google.com' },
+      { urls: 'stun:://google.com' },
       { urls: 'turn:localhost:3478', username: 'cypherlink', credential: 'cypherlink123' }
     ]
   });
@@ -183,7 +202,7 @@ async function createVideoConnection(peerId) {
   pc.onicecandidate = (e) => {
     if (e.candidate) {
       sendMessage(meshNode, meshTopic, {
-        type: 'vid_ice', to: peerId, from: meshNode.peerId.id, candidate: e.candidate
+        type: 'vid_ice', to: peerId, from: meshNode.peerId.toString(), candidate: e.candidate
       });
     }
   };
@@ -194,7 +213,10 @@ async function createVideoConnection(peerId) {
       meshNode._peers[peerId].stream = stream;
       meshNode._peers[peerId].hasCam = true;
       updateCamList();
-      if (activeVideoPeer === peerId) showVideoInCircle(stream);
+      if (!activeVideoPeer || activeVideoPeer === peerId) {
+        activeVideoPeer = peerId;
+        showVideoInCircle(stream);
+      }
     }
   };
 
@@ -206,13 +228,18 @@ async function sendVideoOffer(peerId) {
   if (!pc) pc = await createVideoConnection(peerId);
 
   if (localStream) {
-    localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+    const existingSenders = pc.getSenders().map(s => s.track);
+    localStream.getTracks().forEach(t => {
+      if (!existingSenders.includes(t)) {
+        pc.addTrack(t, localStream);
+      }
+    });
   }
 
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer);
   sendMessage(meshNode, meshTopic, {
-    type: 'vid_sdp', to: peerId, from: meshNode.peerId.id, sdp: pc.localDescription
+    type: 'vid_sdp', to: peerId, from: meshNode.peerId.toString(), sdp: pc.localDescription
   });
 }
 
@@ -222,10 +249,18 @@ async function handleVideoSignal(data, senderId) {
 
   await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
   if (data.sdp.type === 'offer') {
+    if (localStream) {
+      const existingSenders = pc.getSenders().map(s => s.track);
+      localStream.getTracks().forEach(t => {
+        if (!existingSenders.includes(t)) {
+          pc.addTrack(t, localStream);
+        }
+      });
+    }
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
     sendMessage(meshNode, meshTopic, {
-      type: 'vid_sdp', to: senderId, from: meshNode.peerId.id, sdp: pc.localDescription
+      type: 'vid_sdp', to: senderId, from: meshNode.peerId.toString(), sdp: pc.localDescription
     });
   }
 }
@@ -237,20 +272,20 @@ function toggleVideo() {
     localStream = null;
     btn.classList.remove('active');
     btn.textContent = 'CAM';
-    sendMessage(meshNode, meshTopic, { type: 'cam_off', from: meshNode.peerId.id });
+    sendMessage(meshNode, meshTopic, { type: 'cam_off', from: meshNode.peerId.toString() });
     if (activeVideoPeer === 'self') { activeVideoPeer = null; clearCircle(); }
     updateCamList();
   } else {
     navigator.mediaDevices.getUserMedia({
       video: true,
       audio: true
-    }).then(stream => {   
+    }).then(stream => {
       localStream = stream;
       btn.classList.add('active');
       btn.textContent = 'STOP';
       activeVideoPeer = 'self';
       showVideoInCircle(stream);
-      sendMessage(meshNode, meshTopic, { type: 'cam_on', from: meshNode.peerId.id, nickname });
+      sendMessage(meshNode, meshTopic, { type: 'cam_on', from: meshNode.peerId.toString(), nickname });
       for (const pid of Object.keys(meshNode._peers)) {
         sendVideoOffer(pid);
       }
@@ -338,6 +373,7 @@ document.getElementById('join-btn').addEventListener('click', async () => {
   groupName = document.getElementById('join-group').value.trim();
   const groupKey = document.getElementById('join-key').value.trim();
   nickname = document.getElementById('join-nick').value.trim();
+  const customRelay = document.getElementById('join-relay')?.value.trim() || '';
 
   if (!groupName || !groupKey || !nickname) {
     document.getElementById('join-error').textContent = 'All fields required.';
@@ -348,8 +384,9 @@ document.getElementById('join-btn').addEventListener('click', async () => {
     document.getElementById('join-error').textContent = 'Connecting to network...';
 
     groupCrypto = new CypherlinkCrypto(groupKey);
+    await groupCrypto._ready;
 
-    const result = await createNode(groupName);
+    const result = await createNode(groupName, groupKey, customRelay);
     meshNode = result.node;
     meshTopic = result.topic;
 
@@ -357,6 +394,21 @@ document.getElementById('join-btn').addEventListener('click', async () => {
     setPeerFoundHandler(meshNode, (peer) => {
       updatePeerCount();
       appendMessage(null, null, false, 'A member is in the group');
+      if (localStream) {
+        sendVideoOffer(peer.id);
+      }
+    });
+    setPeerLeftHandler(meshNode, (peerId) => {
+      if (videoPcs[peerId]) {
+        videoPcs[peerId].close();
+        delete videoPcs[peerId];
+      }
+      if (activeVideoPeer === peerId) {
+        activeVideoPeer = null;
+        clearCircle();
+      }
+      updateCamList();
+      updatePeerCount();
     });
 
     // Announce our nickname to the group
@@ -390,4 +442,4 @@ document.getElementById('video-btn').addEventListener('click', toggleVideo);
 window.addEventListener('beforeunload', () => {
   if (meshNode) stopNode(meshNode);
   if (localStream) localStream.getTracks().forEach(t => t.stop());
-});   
+});

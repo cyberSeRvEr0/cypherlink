@@ -1,9 +1,6 @@
 /**
- * Cypherlink mesh — P2P via libp2p.
- * Same network: mDNS (instant, local multicast)
- * Cross-network: DHT (distributed phone book)
- * Messaging: GossipSub
- * Transport: WebRTC + circuit relay
+ * Cypherlink mesh — Browser P2P via libp2p GossipSub + WebRTC + Circuit Relay.
+ * Zero personal IPs. Deterministic rendezvous selection from Group + Invite Key.
  */
 import { createLibp2p } from 'libp2p';
 import { webRTC } from '@libp2p/webrtc';
@@ -14,32 +11,56 @@ import { noise } from '@chainsafe/libp2p-noise';
 import { yamux } from '@chainsafe/libp2p-yamux';
 import { identify } from '@libp2p/identify';
 import { ping } from '@libp2p/ping';
-import { kadDHT } from '@libp2p/kad-dht';
-import { bootstrap } from '@libp2p/bootstrap';
-import { mdns } from '@libp2p/mdns';
+import { pubsubPeerDiscovery } from '@libp2p/pubsub-peer-discovery';
+import { multiaddr } from '@multiformats/multiaddr';
 
-const BOOTSTRAP_LIST = [
+// Public decentralized libp2p / IPFS bootstrap & relay nodes (No personal IPs)
+const PUBLIC_RELAYS = [
   '/dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN',
   '/dnsaddr/bootstrap.libp2p.io/p2p/QmQCU2EcMqAqQPR2i9bChDtGNJchTbq5TbXJJ16u19uLTa',
   '/dnsaddr/bootstrap.libp2p.io/p2p/QmbLHAnMoJPWSCR5Zhtx6BHJX9KiKNN6tpvbUcqanj75Nb',
-  '/dnsaddr/bootstrap.libp2p.io/p2p/QmcZf59bWwK5XFi76CZX8cbJ4BhTzzA3gU1ZjYZcYW3dwt'
+  '/dnsaddr/bootstrap.libp2p.io/p2p/QmcZf59bWwK5XFi76CZX8cbJ4BhTzzA3gU1ZjYZcYW3dwt',
+  '/dns4/node0.preload.ipfs.io/tcp/443/wss/p2p/QmZMxNdpMkewiVZLMRxaNxUeZpDUb34pWjZ1kZvsd16Zic',
+  '/dns4/node1.preload.ipfs.io/tcp/443/wss/p2p/Qmbut9Ywz9YEDrz8ySBSgWyJk41Uvm2QJPhwDJzJyGFsD6',
+  '/dns4/node2.preload.ipfs.io/tcp/443/wss/p2p/QmV7gnbW5VTcJ3oyM2Xk1rdFBJ3kTkvxc87UFGsun29STS',
+  '/dns4/node3.preload.ipfs.io/tcp/443/wss/p2p/QmY7JB6MQXhxHvq7dBDh4HpbH29v4yE9JRadAVpndvzySN',
 ];
 
-const DHT_PREFIX = 'cypherlink';
-const DHT_TIMEOUT = 5000;
+// Derive both the private topic AND the deterministic primary relay index
+async function deriveRendezvous(groupName, groupKey) {
+  const raw = new TextEncoder().encode(`cypherlink-v1:${groupName}:${groupKey}`);
+  const hashBuffer = await self.crypto.subtle.digest('SHA-256', raw);
+  const hashBytes = new Uint8Array(hashBuffer);
+  const hashHex = Array.from(hashBytes)
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
 
-function groupKey(groupName) {
-  return new TextEncoder().encode(`${DHT_PREFIX}:group:${groupName}`);
+  // Use first 4 bytes of the group hash to deterministically pick the meeting point
+  const view = new DataView(hashBuffer);
+  const relayIndex = view.getUint32(0, false) % PUBLIC_RELAYS.length;
+
+  return {
+    topic: `cypherlink/${hashHex}`,
+    relayIndex,
+  };
 }
 
-function withTimeout(promise, ms, fallback) {
-  return Promise.race([
-    promise,
-    new Promise(resolve => setTimeout(() => resolve(fallback), ms))
-  ]);
-}
+export async function createNode(groupName, groupKey, customRelay = '') {
+  const { topic, relayIndex } = await deriveRendezvous(groupName, groupKey);
+  const discoveryTopic = `${topic}/_peer-discovery`;
 
-export async function createNode(groupName) {
+  // Order relays so both users dial the exact same primary meeting point first,
+  // with remaining nodes as automatic fallbacks
+  let orderedRelays = [];
+  if (customRelay && customRelay.trim().length > 0) {
+    orderedRelays = [customRelay.trim()];
+  } else {
+    orderedRelays = [
+      ...PUBLIC_RELAYS.slice(relayIndex),
+      ...PUBLIC_RELAYS.slice(0, relayIndex),
+    ];
+  }
+
   const node = await createLibp2p({
     addresses: {
       listen: ['/webrtc', '/p2p-circuit'],
@@ -47,7 +68,9 @@ export async function createNode(groupName) {
     transports: [
       webRTC(),
       webSockets(),
-      circuitRelayTransport(),
+      circuitRelayTransport({
+        discoverRelays: 2,
+      }),
     ],
     connectionEncrypters: [noise()],
     streamMuxers: [yamux()],
@@ -55,12 +78,10 @@ export async function createNode(groupName) {
       denyDialMultiaddr: async () => false,
     },
     peerDiscovery: [
-      // Same network: instant discovery via multicast
-      mdns(),
-      // Cross-network: connect to public libp2p network
-      bootstrap({
-        list: BOOTSTRAP_LIST,
-        interval: 30000,
+      pubsubPeerDiscovery({
+        interval: 3000,
+        topics: [discoveryTopic],
+        listenOnly: false,
       }),
     ],
     services: {
@@ -68,131 +89,105 @@ export async function createNode(groupName) {
       ping: ping(),
       pubsub: gossipsub({
         allowPublishToOwnTopic: true,
-      }),
-      dht: kadDHT({
-        clientMode: false,
-        validators: {
-          [DHT_PREFIX]: async () => true,
-        },
-        selectors: {
-          [DHT_PREFIX]: () => true,
-        },
+        emitSelf: false,
       }),
     },
   });
 
-  // Subscribe to group topic
-  const topic = `cypherlink/${groupName}`;
-  await node.services.pubsub.join(topic);
-
+  const selfId = node.peerId.toString();
   node._peers = {};
   node._groupName = groupName;
+  node._topic = topic;
   node._nickname = '';
 
-  // Listen for group messages
-  node.services.pubsub.subscribe(topic, (msg) => {
-    const data = JSON.parse(new TextDecoder().decode(msg.data));
-    const senderId = msg.from ? (msg.from.toString ? msg.from.toString() : msg.from) : null;
-    if (senderId && senderId !== node.peerId.id) {
-      if (!node._peers[senderId]) {
-        node._peers[senderId] = { id: senderId, nickname: 'unknown', hasCam: false };
-        if (node._onPeerFound) node._onPeerFound(node._peers[senderId]);
-      }
+  // Connect to the deterministically chosen primary relay (plus fallbacks)
+  let connectedRelays = 0;
+  for (const addr of orderedRelays) {
+    try {
+      await node.dial(multiaddr(addr));
+      connectedRelays++;
+      // Once connected to the primary meeting point + 1 backup, stop dialing extra relays
+      if (connectedRelays >= 2) break;
+    } catch (e) {
+      // Silently try next fallback relay if one is offline or rate-limited
     }
-    if (node._onMessage) node._onMessage(data, senderId);
+  }
+
+  if (connectedRelays === 0) {
+    throw new Error('Could not reach any mesh relay. Check internet or provide a Custom Relay.');
+  }
+
+  // Subscribe to the deterministic group topic
+  node.services.pubsub.subscribe(topic);
+
+  // Listen for incoming pubsub messages
+  node.services.pubsub.addEventListener('message', (evt) => {
+    if (evt.detail.topic !== topic) return;
+    try {
+      const data = JSON.parse(new TextDecoder().decode(evt.detail.data));
+      const senderId = evt.detail.from ? evt.detail.from.toString() : data.from;
+
+      if (senderId && senderId !== selfId) {
+        if (!node._peers[senderId]) {
+          node._peers[senderId] = {
+            id: senderId,
+            nickname: data.nickname || 'unknown',
+            hasCam: false,
+          };
+          if (node._onPeerFound) node._onPeerFound(node._peers[senderId]);
+          sendHello(node, topic, node._nickname);
+        } else if (data.nickname && node._peers[senderId].nickname === 'unknown') {
+          node._peers[senderId].nickname = data.nickname;
+        }
+      }
+
+      if (node._onMessage) node._onMessage(data, senderId);
+    } catch (e) {
+      console.error('[Cypherlink] Message parse error:', e);
+    }
   });
 
-  // When a NEW peer is discovered (via mDNS or bootstrap), dial them
+  // Automatically dial any peer discovered on our group's discovery topic
   node.addEventListener('peer:discovery', async (evt) => {
     try {
       const peerInfo = evt.detail;
-      if (peerInfo.id && peerInfo.id !== node.peerId.id) {
-        const id = peerInfo.id.toString ? peerInfo.id.toString() : peerInfo.id;
-        if (!node._peers[id]) {
-          await node.dial(peerInfo.id);
-        }
+      const id = peerInfo.id.toString();
+      if (id !== selfId && !node._peers[id]) {
+        await node.dial(peerInfo.id);
       }
     } catch (e) {}
   });
 
-  // --- DHT: find cross-network members (with timeout) ---
-  const existingMembers = await withTimeout(
-    dhtGetGroupMembers(node, groupName),
-    DHT_TIMEOUT,
-    []
-  );
+  // Clean up disconnected peers
+  node.addEventListener('peer:disconnect', (evt) => {
+    const id = evt.detail.toString();
+    if (node._peers[id]) {
+      delete node._peers[id];
+      if (node._onPeerLeft) node._onPeerLeft(id);
+    }
+  });
 
-  for (const member of existingMembers) {
-    if (member.id === node.peerId.id) continue;
-    try {
-      await node.dial(member.id);
-      if (!node._peers[member.id]) {
-        node._peers[member.id] = { id: member.id, nickname: member.nickname || 'unknown', hasCam: false };
-        if (node._onPeerFound) node._onPeerFound(node._peers[member.id]);
-      }
-    } catch (e) {}
-  }
+  await sendHello(node, topic, '');
 
-  // Add ourselves to DHT (background, non-blocking)
-  dhtAddToGroup(node, groupName, '').catch(() => {});
-
-  // Announce on topic
-  try {
-    const hello = { type: 'hello', from: node.peerId.id, nickname: '', ts: Date.now() };
-    await node.services.pubsub.publish(topic, new TextEncoder().encode(JSON.stringify(hello)));
-  } catch (e) {}
-
-  // Periodic: re-announce + refresh DHT
-  node._announceInterval = setInterval(async () => {
-    try {
-      dhtAddToGroup(node, groupName, node._nickname || '').catch(() => {});
-      const hello = { type: 'hello', from: node.peerId.id, nickname: node._nickname || '', ts: Date.now() };
-      await node.services.pubsub.publish(topic, new TextEncoder().encode(JSON.stringify(hello)));
-    } catch (e) {}
-  }, 20000);
+  node._announceInterval = setInterval(() => {
+    sendHello(node, topic, node._nickname || '');
+  }, 10000);
 
   return { node, topic };
 }
 
-async function dhtGetGroupMembers(node, groupName) {
-  const key = groupKey(groupName);
+async function sendHello(node, topic, nickname) {
   try {
-    for await (const event of node.services.dht.get(key)) {
-      if (event.type === 'Value' && event.value) {
-        const data = JSON.parse(new TextDecoder().decode(event.value));
-        if (Array.isArray(data)) return data;
-      }
-    }
-  } catch (e) {}
-  return [];
-}
-
-async function dhtAddToGroup(node, groupName, nickname) {
-  const key = groupKey(groupName);
-  let members = await dhtGetGroupMembers(node, groupName);
-  members = members.filter(m => m.id !== node.peerId.id);
-  members.push({
-    id: node.peerId.id,
-    addresses: node.getMultiaddrs().map(a => a.toString()),
-    nickname,
-    ts: Date.now(),
-  });
-  if (members.length > 100) members = members.slice(-100);
-  try {
-    for await (const _ of node.services.dht.put(key, new TextEncoder().encode(JSON.stringify(members)))) {}
-  } catch (e) {}
-}
-
-async function dhtRemoveFromGroup(node, groupName) {
-  const key = groupKey(groupName);
-  let members = await dhtGetGroupMembers(node, groupName);
-  members = members.filter(m => m.id !== node.peerId.id);
-  try {
-    if (members.length === 0) {
-      for await (const _ of node.services.dht.remove(key)) {}
-    } else {
-      for await (const _ of node.services.dht.put(key, new TextEncoder().encode(JSON.stringify(members)))) {}
-    }
+    const hello = {
+      type: 'hello',
+      from: node.peerId.toString(),
+      nickname: nickname || '',
+      ts: Date.now(),
+    };
+    await node.services.pubsub.publish(
+      topic,
+      new TextEncoder().encode(JSON.stringify(hello))
+    );
   } catch (e) {}
 }
 
@@ -204,9 +199,16 @@ export function setPeerFoundHandler(node, handler) {
   node._onPeerFound = handler;
 }
 
+export function setPeerLeftHandler(node, handler) {
+  node._onPeerLeft = handler;
+}
+
 export async function sendMessage(node, topic, payload) {
   try {
-    await node.services.pubsub.publish(topic, new TextEncoder().encode(JSON.stringify(payload)));
+    await node.services.pubsub.publish(
+      topic,
+      new TextEncoder().encode(JSON.stringify(payload))
+    );
   } catch (e) {}
 }
 
@@ -214,17 +216,12 @@ export function getPeers(node) {
   return node._peers || {};
 }
 
-export async function updateNickname(node, groupName, nickname) {
+export async function updateNickname(node, topic, nickname) {
   node._nickname = nickname;
-  dhtAddToGroup(node, groupName, nickname).catch(() => {});
-  const msg = { type: 'hello', from: node.peerId.id, nickname, ts: Date.now() };
-  try {
-    await node.services.pubsub.publish(`cypherlink/${groupName}`, new TextEncoder().encode(JSON.stringify(msg)));
-  } catch (e) {}
+  await sendHello(node, topic, nickname);
 }
 
 export function stopNode(node) {
   if (node._announceInterval) clearInterval(node._announceInterval);
-  if (node._groupName) dhtRemoveFromGroup(node, node._groupName).catch(() => {});
   node.stop();
-}   
+}

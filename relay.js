@@ -31,6 +31,7 @@ const relay = await createLibp2p({
     pubsub: gossipsub({
       allowPublishToOwnTopic: true,
       emitSelf: false,
+      floodPublish: true,
     }),
     relay: circuitRelayServer({
       reservations: {

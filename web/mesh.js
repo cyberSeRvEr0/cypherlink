@@ -2,6 +2,7 @@
  * Cypherlink mesh — Browser P2P via libp2p GossipSub + WebRTC + Circuit Relay.
  * Deterministic rendezvous routing from Group + Invite Key.
  */
+import * as filters from '@libp2p/websockets/filters';
 import { createLibp2p } from 'libp2p';
 import { webRTC } from '@libp2p/webrtc';
 import { webSockets } from '@libp2p/websockets';
@@ -59,7 +60,9 @@ export async function createNode(groupName, groupKey, customRelay = '') {
     },
     transports: [
       webRTC(),
-      webSockets(),
+      webSockets({
+        filter: filters.all,
+      }),
       circuitRelayTransport({
         discoverRelays: 1,
       }),

@@ -1,7 +1,10 @@
-if (!Promise.withResolvers) {
-  Promise.withResolvers = () => {
+if (typeof Promise.withResolvers !== 'function') {
+  Promise.withResolvers = function () {
     let resolve, reject;
-    const promise = new Promise((res, rej) => { resolve = res; reject = rej; });
+    const promise = new Promise((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
     return { promise, resolve, reject };
   };
 }
@@ -37,5 +40,5 @@ const relay = await createLibp2p({
   },
 });
 
-console.log('Cypherlink Relay listening on:');
+console.log('\nCypherlink Relay Ready:');
 relay.getMultiaddrs().forEach((ma) => console.log(' ', ma.toString()));

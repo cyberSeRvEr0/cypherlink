@@ -6,16 +6,13 @@ if (!Promise.withResolvers) {
   };
 }
 
-/**
- * Cypherlink Stateless Relay — RAM-only signaling, zero database, zero logs.
- */
-import { createLibp2p } from 'libp2p';
-import { webSockets } from '@libp2p/websockets';
-import { circuitRelayServer } from '@libp2p/circuit-relay-v2';
-import { noise } from '@chainsafe/libp2p-noise';
-import { yamux } from '@chainsafe/libp2p-yamux';
-import { identify } from '@libp2p/identify';
-import { gossipsub } from '@chainsafe/libp2p-gossipsub';
+const { createLibp2p } = await import('libp2p');
+const { webSockets } = await import('@libp2p/websockets');
+const { circuitRelayServer } = await import('@libp2p/circuit-relay-v2');
+const { noise } = await import('@chainsafe/libp2p-noise');
+const { yamux } = await import('@chainsafe/libp2p-yamux');
+const { identify } = await import('@libp2p/identify');
+const { gossipsub } = await import('@chainsafe/libp2p-gossipsub');
 
 const PORT = process.env.RELAY_PORT || 9090;
 

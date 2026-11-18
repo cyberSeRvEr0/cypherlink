@@ -1,6 +1,5 @@
 /**
- * Cypherlink Stateless Relay — No database, no logs, RAM-only signaling.
- * Allows browser nodes to discover each other and upgrade to direct WebRTC.
+ * Cypherlink Stateless Relay — RAM-only signaling, zero database, zero logs.
  */
 import { createLibp2p } from 'libp2p';
 import { webSockets } from '@libp2p/websockets';
@@ -33,8 +32,5 @@ const relay = await createLibp2p({
   },
 });
 
-console.log('Cypherlink Stateless Relay running.');
-console.log('Copy one of these Multiaddrs into RELAY_MULTIADDRS in web/mesh.js:\n');
-relay.getMultiaddrs().forEach((ma) => {
-  console.log(`  ${ma.toString()}`);
-});
+console.log('Cypherlink Relay listening on:');
+relay.getMultiaddrs().forEach((ma) => console.log(' ', ma.toString()));

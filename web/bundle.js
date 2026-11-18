@@ -66635,23 +66635,15 @@ function pubsubPeerDiscovery(init = {}) {
 }
 
 // web/mesh.js
-var PUBLIC_RELAYS = [
-  "/dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN",
-  "/dnsaddr/bootstrap.libp2p.io/p2p/QmQCU2EcMqAqQPR2i9bChDtGNJchTbq5TbXJJ16u19uLTa",
-  "/dnsaddr/bootstrap.libp2p.io/p2p/QmbLHAnMoJPWSCR5Zhtx6BHJX9KiKNN6tpvbUcqanj75Nb",
-  "/dnsaddr/bootstrap.libp2p.io/p2p/QmcZf59bWwK5XFi76CZX8cbJ4BhTzzA3gU1ZjYZcYW3dwt",
-  "/dns4/node0.preload.ipfs.io/tcp/443/wss/p2p/QmZMxNdpMkewiVZLMRxaNxUeZpDUb34pWjZ1kZvsd16Zic",
-  "/dns4/node1.preload.ipfs.io/tcp/443/wss/p2p/Qmbut9Ywz9YEDrz8ySBSgWyJk41Uvm2QJPhwDJzJyGFsD6",
-  "/dns4/node2.preload.ipfs.io/tcp/443/wss/p2p/QmV7gnbW5VTcJ3oyM2Xk1rdFBJ3kTkvxc87UFGsun29STS",
-  "/dns4/node3.preload.ipfs.io/tcp/443/wss/p2p/QmY7JB6MQXhxHvq7dBDh4HpbH29v4yE9JRadAVpndvzySN"
+var RELAY_POOL = [
+  // Example: '/dns4/://your-relay-domain.com...'
 ];
 async function deriveRendezvous(groupName2, groupKey) {
   const raw = new TextEncoder().encode(`cypherlink-v1:${groupName2}:${groupKey}`);
   const hashBuffer = await self.crypto.subtle.digest("SHA-256", raw);
-  const hashBytes = new Uint8Array(hashBuffer);
-  const hashHex = Array.from(hashBytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+  const hashHex = Array.from(new Uint8Array(hashBuffer)).map((b) => b.toString(16).padStart(2, "0")).join("");
   const view = new DataView(hashBuffer);
-  const relayIndex = view.getUint32(0, false) % PUBLIC_RELAYS.length;
+  const relayIndex = RELAY_POOL.length > 0 ? view.getUint32(0, false) % RELAY_POOL.length : 0;
   return {
     topic: `cypherlink/${hashHex}`,
     relayIndex
@@ -66663,10 +66655,10 @@ async function createNode(groupName2, groupKey, customRelay = "") {
   let orderedRelays = [];
   if (customRelay && customRelay.trim().length > 0) {
     orderedRelays = [customRelay.trim()];
-  } else {
+  } else if (RELAY_POOL.length > 0) {
     orderedRelays = [
-      ...PUBLIC_RELAYS.slice(relayIndex),
-      ...PUBLIC_RELAYS.slice(0, relayIndex)
+      ...RELAY_POOL.slice(relayIndex),
+      ...RELAY_POOL.slice(0, relayIndex)
     ];
   }
   const node = await createLibp2p({
@@ -66677,7 +66669,7 @@ async function createNode(groupName2, groupKey, customRelay = "") {
       webRTC(),
       webSockets(),
       circuitRelayTransport({
-        discoverRelays: 2
+        discoverRelays: 1
       })
     ],
     connectionEncrypters: [noise()],
@@ -66687,7 +66679,7 @@ async function createNode(groupName2, groupKey, customRelay = "") {
     },
     peerDiscovery: [
       pubsubPeerDiscovery({
-        interval: 3e3,
+        interval: 2e3,
         topics: [discoveryTopic],
         listenOnly: false
       })
@@ -66706,17 +66698,22 @@ async function createNode(groupName2, groupKey, customRelay = "") {
   node._groupName = groupName2;
   node._topic = topic;
   node._nickname = "";
+  if (orderedRelays.length === 0) {
+    throw new Error("No relay configured. Start `node relay.js` and paste its address into Custom Relay.");
+  }
   let connectedRelays = 0;
+  let lastError = null;
   for (const addr of orderedRelays) {
     try {
       await node.dial(multiaddr(addr));
       connectedRelays++;
       if (connectedRelays >= 2) break;
     } catch (e) {
+      lastError = e;
     }
   }
   if (connectedRelays === 0) {
-    throw new Error("Could not reach any mesh relay. Check internet or provide a Custom Relay.");
+    throw new Error(`Relay unreachable: ${lastError?.message || "check relay address"}`);
   }
   node.services.pubsub.subscribe(topic);
   node.services.pubsub.addEventListener("message", (evt) => {
@@ -66762,7 +66759,7 @@ async function createNode(groupName2, groupKey, customRelay = "") {
   await sendHello(node, topic, "");
   node._announceInterval = setInterval(() => {
     sendHello(node, topic, node._nickname || "");
-  }, 1e4);
+  }, 5e3);
   return { node, topic };
 }
 async function sendHello(node, topic, nickname2) {

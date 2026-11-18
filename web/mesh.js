@@ -1,6 +1,6 @@
 /**
  * Cypherlink mesh — Browser P2P via libp2p GossipSub + WebRTC + Circuit Relay.
- * Zero personal IPs. Deterministic rendezvous selection from Group + Invite Key.
+ * Deterministic rendezvous routing from Group + Invite Key.
  */
 import { createLibp2p } from 'libp2p';
 import { webRTC } from '@libp2p/webrtc';
@@ -14,30 +14,24 @@ import { ping } from '@libp2p/ping';
 import { pubsubPeerDiscovery } from '@libp2p/pubsub-peer-discovery';
 import { multiaddr } from '@multiformats/multiaddr';
 
-// Public decentralized libp2p / IPFS bootstrap & relay nodes (No personal IPs)
-const PUBLIC_RELAYS = [
-  '/dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN',
-  '/dnsaddr/bootstrap.libp2p.io/p2p/QmQCU2EcMqAqQPR2i9bChDtGNJchTbq5TbXJJ16u19uLTa',
-  '/dnsaddr/bootstrap.libp2p.io/p2p/QmbLHAnMoJPWSCR5Zhtx6BHJX9KiKNN6tpvbUcqanj75Nb',
-  '/dnsaddr/bootstrap.libp2p.io/p2p/QmcZf59bWwK5XFi76CZX8cbJ4BhTzzA3gU1ZjYZcYW3dwt',
-  '/dns4/node0.preload.ipfs.io/tcp/443/wss/p2p/QmZMxNdpMkewiVZLMRxaNxUeZpDUb34pWjZ1kZvsd16Zic',
-  '/dns4/node1.preload.ipfs.io/tcp/443/wss/p2p/Qmbut9Ywz9YEDrz8ySBSgWyJk41Uvm2QJPhwDJzJyGFsD6',
-  '/dns4/node2.preload.ipfs.io/tcp/443/wss/p2p/QmV7gnbW5VTcJ3oyM2Xk1rdFBJ3kTkvxc87UFGsun29STS',
-  '/dns4/node3.preload.ipfs.io/tcp/443/wss/p2p/QmY7JB6MQXhxHvq7dBDh4HpbH29v4yE9JRadAVpndvzySN',
+// Add your deployed cloud relay multiaddr(s) here (no personal home IPs).
+// For local VM testing, paste the /ip4/127.0.0.1/tcp/9090/ws/p2p/... address from `node relay.js`
+// OR paste it directly into the "Custom Relay" box on the join screen.
+const RELAY_POOL = [
+  // Example: '/dns4/://your-relay-domain.com...'
 ];
 
-// Derive both the private topic AND the deterministic primary relay index
 async function deriveRendezvous(groupName, groupKey) {
   const raw = new TextEncoder().encode(`cypherlink-v1:${groupName}:${groupKey}`);
   const hashBuffer = await self.crypto.subtle.digest('SHA-256', raw);
-  const hashBytes = new Uint8Array(hashBuffer);
-  const hashHex = Array.from(hashBytes)
+  const hashHex = Array.from(new Uint8Array(hashBuffer))
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('');
 
-  // Use first 4 bytes of the group hash to deterministically pick the meeting point
   const view = new DataView(hashBuffer);
-  const relayIndex = view.getUint32(0, false) % PUBLIC_RELAYS.length;
+  const relayIndex = RELAY_POOL.length > 0
+    ? view.getUint32(0, false) % RELAY_POOL.length
+    : 0;
 
   return {
     topic: `cypherlink/${hashHex}`,
@@ -49,15 +43,13 @@ export async function createNode(groupName, groupKey, customRelay = '') {
   const { topic, relayIndex } = await deriveRendezvous(groupName, groupKey);
   const discoveryTopic = `${topic}/_peer-discovery`;
 
-  // Order relays so both users dial the exact same primary meeting point first,
-  // with remaining nodes as automatic fallbacks
   let orderedRelays = [];
   if (customRelay && customRelay.trim().length > 0) {
     orderedRelays = [customRelay.trim()];
-  } else {
+  } else if (RELAY_POOL.length > 0) {
     orderedRelays = [
-      ...PUBLIC_RELAYS.slice(relayIndex),
-      ...PUBLIC_RELAYS.slice(0, relayIndex),
+      ...RELAY_POOL.slice(relayIndex),
+      ...RELAY_POOL.slice(0, relayIndex),
     ];
   }
 
@@ -69,7 +61,7 @@ export async function createNode(groupName, groupKey, customRelay = '') {
       webRTC(),
       webSockets(),
       circuitRelayTransport({
-        discoverRelays: 2,
+        discoverRelays: 1,
       }),
     ],
     connectionEncrypters: [noise()],
@@ -79,7 +71,7 @@ export async function createNode(groupName, groupKey, customRelay = '') {
     },
     peerDiscovery: [
       pubsubPeerDiscovery({
-        interval: 3000,
+        interval: 2000,
         topics: [discoveryTopic],
         listenOnly: false,
       }),
@@ -100,27 +92,30 @@ export async function createNode(groupName, groupKey, customRelay = '') {
   node._topic = topic;
   node._nickname = '';
 
-  // Connect to the deterministically chosen primary relay (plus fallbacks)
+  if (orderedRelays.length === 0) {
+    throw new Error('No relay configured. Start `node relay.js` and paste its address into Custom Relay.');
+  }
+
   let connectedRelays = 0;
+  let lastError = null;
   for (const addr of orderedRelays) {
     try {
       await node.dial(multiaddr(addr));
       connectedRelays++;
-      // Once connected to the primary meeting point + 1 backup, stop dialing extra relays
       if (connectedRelays >= 2) break;
     } catch (e) {
-      // Silently try next fallback relay if one is offline or rate-limited
+      lastError = e;
     }
   }
 
   if (connectedRelays === 0) {
-    throw new Error('Could not reach any mesh relay. Check internet or provide a Custom Relay.');
+    throw new Error(`Relay unreachable: ${lastError?.message || 'check relay address'}`);
   }
 
   // Subscribe to the deterministic group topic
   node.services.pubsub.subscribe(topic);
 
-  // Listen for incoming pubsub messages
+  // Receive messages over libp2p GossipSub
   node.services.pubsub.addEventListener('message', (evt) => {
     if (evt.detail.topic !== topic) return;
     try {
@@ -147,7 +142,7 @@ export async function createNode(groupName, groupKey, customRelay = '') {
     }
   });
 
-  // Automatically dial any peer discovered on our group's discovery topic
+  // Dial peers discovered on our group's discovery topic
   node.addEventListener('peer:discovery', async (evt) => {
     try {
       const peerInfo = evt.detail;
@@ -171,7 +166,7 @@ export async function createNode(groupName, groupKey, customRelay = '') {
 
   node._announceInterval = setInterval(() => {
     sendHello(node, topic, node._nickname || '');
-  }, 10000);
+  }, 5000);
 
   return { node, topic };
 }

@@ -1,88 +1,123 @@
 # Cypherlink
 
-Cypherlink is a browser-based peer-to-peer chat and video chat prototype. It uses libp2p for peer networking, GossipSub for live group messages, WebRTC for media connections, and Kademlia DHT for best-effort peer metadata.
-
-> **Status:** Cross-network group discovery and video connectivity are not yet reliable. Public bootstrap peers help nodes find the libp2p network; they are not a Cypherlink group directory or a TURN service.
+Cypherlink is a database-free browser chat and video prototype. It creates temporary rooms from a group name and invite key. Rooms have no server-side directory or stored history and leave no browser database behind.
 
 ## Features
 
-- Group chat using GossipSub topics in the form `cypherlink/<groupName>`.
-- Peer discovery from messages published by users currently subscribed to the same group topic.
-- WebRTC-based video signaling and media connections.
-- AES-GCM encryption support in the application layer and encrypted local-history support, when enabled in `app.js`.
-- A “Leave and delete my data” control intended to stop the node and delete local IndexedDB records.
+- Temporary text rooms
+- Ephemeral in-memory member presence
+- AES-GCM encrypted text payloads
+- libp2p Noise transport encryption
+- libp2p GossipSub messaging
+- Circuit Relay v2 fallback
+- WebRTC camera and microphone
+- STUN support and optional TURN support
+- Leave and presence cleanup
+- `CLOSE ROOM` control
+- Linux and Windows setup scripts
 
 ## Requirements
 
-- Node.js 20 or newer and npm.
-- Python 3 for the local development web server.
-- A modern browser that supports the Web APIs used by the app.
-- An internet connection for installing dependencies and peer networking.
+- Node.js 22 or newer
+- npm
+- Python 3
+- A modern WebRTC-capable browser
 
-The setup script installs Node.js/npm, Python, and coturn on supported systems with `apt` or Homebrew, installs project dependencies, builds the app, and serves it locally.
+## Start locally
 
-## Setup
+Linux:
 
-From the project directory, run:
+```bash
+chmod +x setup.sh
+./setup.sh
+```
 
-    chmod +x setup.sh
-    ./setup.sh
+Windows:
 
-Open http://localhost:3000. Stop the server with **Ctrl+C**.
+```bat
+setup.bat
+```
 
-To build without starting the server, run:
+Open `http://localhost:3000`. The setup process builds the browser bundle, starts `relay.js`, and starts the web server.
 
-    npm install
-    npm run build
+Stop the Linux setup with **Ctrl+C**. It stops the web and relay processes.
 
-The build command bundles `web/app.js` into `web/bundle.js`. Keep `index.html` and `style.css` in `web/` so their relative asset paths work.
+Build only:
 
-## Joining a group
+```bash
+npm install
+npm run build
+```
 
-Enter the same group name and invite key as other participants, then choose a nickname. The group name selects the GossipSub topic. The invite key is intended for application-level encryption; it is not a peer-discovery mechanism.
+Run separate services:
 
-Use a strong, unique invite key and share it only with intended participants. The group name is not a secret or an access-control mechanism.
+```bash
+npm run relay
+python3 -m http.server 3000 --directory web
+```
+
+The relay writes `web/relay-config.json`. The browser uses that relay automatically when no custom relay is entered.
+
+## Join a room
+
+Enter the same group name and invite key as the intended members, and choose a nickname.
+
+- The group name and invite key are hashed to a GossipSub topic.
+- Chat text is encrypted with AES-GCM.
+- The invite key is derived locally with PBKDF2.
+- Nicknames are display labels, not authenticated identities.
+- The peer ID is session-specific.
+- No account, database, or room registry is required.
+
+Use a strong, unique invite key and share it through a trusted channel.
+
+## Close a room
+
+Use **CLOSE ROOM** or close the browser tab. Cypherlink stops media tracks, sends a leave event, stops the libp2p node, clears the page chat, and removes its in-memory member list.
+
+Members that stop responding are removed after 15 seconds. There is no room directory to update because there is no database.
+
+The room has no server-side state: it disappears when all members leave. Cypherlink cannot erase copies made by users or browser/network infrastructure outside the application.
 
 ## Architecture
 
-- **libp2p** creates the peer node and manages transports and connections.
-- **WebRTC** provides browser peer-to-peer transport, with circuit relay support configured in the node.
-- **GossipSub** carries live group messages on `cypherlink/<groupName>`.
-- **Kademlia DHT** stores best-effort per-peer metadata under keys shaped like `cypherlink:group:<groupName>:<peerId>`.
-- **IndexedDB** stores browser-local records. The “Leave and delete my data” action is intended to remove the app’s local databases.
+- `web/app.js`: UI, room state, chat encryption, and WebRTC
+- `web/mesh.js`: libp2p node, GossipSub, relay, and presence
+- `relay.js`: Circuit Relay v2 WebSocket server
+- `setup.sh`: Linux dependencies, build, coturn, relay, firewall, and web server
+- `setup.bat`: Windows build, relay, and web server
+- `web/bundle.js`: generated browser bundle
 
-DHT keys are unique per peer to avoid overwriting a shared group record. However, Kademlia `get()` does not enumerate all keys under a group prefix. These records therefore do not provide a complete group directory. The current practical discovery path is a peer’s live presence announcement on the group’s GossipSub topic.
+## Public relay and TURN
 
-## Security and networking notes
+A local relay address is only reachable to devices that can reach your machine. For public use, set:
 
-Treat Cypherlink as a prototype, not as a production-ready secure communications system.
+```bash
+RELAY_PUBLIC_HOST=your-public-ip \
+TURN_URL=turn:your-public-ip:3478 \
+TURN_USERNAME=cypherlink \
+TURN_CREDENTIAL=cypherlink123 \
+npm run relay
+```
 
-- **Transport encryption and end-to-end encryption are different.** libp2p Noise protects connections between peers. It does not by itself ensure that application messages are encrypted for only the intended group members. Confirm that `app.js` encrypts and authenticates message payloads before publishing them.
-- **AES-GCM requires careful key handling.** Use a strong invite key, unique nonces, and authenticated decryption. Do not store the encryption key alongside ciphertext.
-- **Local deletion has limits.** Deleting IndexedDB removes the app’s browser database, but cannot guarantee deletion of copies, exports, browser backups, or data held by other participants.
-- **Bootstrap peers are not a group directory.** They help nodes connect to the libp2p network but do not list Cypherlink group members.
-- **TURN is not configured by the setup script.** Installing coturn alone does not make it reachable. Remote TURN requires a publicly reachable server, suitable network configuration, and secure credentials. A TURN URL using `localhost` refers only to the device running the browser.
-- **WebRTC may fail across restrictive networks.** Reliable cross-network joining and video require a working rendezvous/signaling approach and, in some network conditions, a reachable TURN relay.
-- Avoid claims such as “no trace” or “no server sees your data” unless the encryption, signaling, relay, browser-storage, and deployment behavior has been reviewed and verified.
+Public deployment additionally requires:
 
-## Current limitations
+- A reachable public IP or DNS name
+- TCP port 9090 open to WebSocket clients
+- UDP relay ports and coturn port 3478 open
+- HTTPS and a reverse proxy/WSS endpoint for browser deployment
+- Strong TURN credentials or TURN REST credentials
 
-- New peers may not find existing group members across networks because there is no reliable group rendezvous directory.
-- DHT records are best-effort and cannot be discovered by querying a group prefix.
-- TURN is installed but not configured or started by `setup.sh`.
-- Video and signaling depend on the application’s WebRTC signaling implementation and network reachability.
-- Bootstrap availability and browser or network restrictions can affect connections.
+TURN is optional. STUN helps discover direct network paths; TURN relays media only when direct paths fail.
 
-## Project files
+## Privacy and security boundaries
 
-    .
-    ├── mesh.js
-    ├── package.json
-    ├── setup.sh
-    └── web/
-        ├── app.js
-        ├── bundle.js       # generated by npm run build
-        ├── index.html
-        └── style.css
+- Transport data is protected by libp2p Noise.
+- Chat text is protected by AES-GCM.
+- Relays and infrastructure can observe IP addresses, connection times, topic hashes, and traffic metadata.
+- WebRTC signaling metadata and TURN traffic are subject to relay visibility.
+- Nicknames are not cryptographically authenticated.
+- Messages exist only in browser memory.
+- This is an ephemeral prototype, not a production security product.
 
-Adjust the file paths in this section if your project uses a different layout.
+For high-risk use, add signed peer identities, a secure key exchange, sequence and replay protection, encrypted sender identities, authenticated signaling, automated TURN credential rotation, and an independent security audit.

@@ -2,4 +2,5 @@ node_modules/
 __pycache__/
 *.pyc
 dist/
-.env   
+.env
+web/relay-config.json

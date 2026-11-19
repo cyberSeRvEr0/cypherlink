@@ -66635,9 +66635,17 @@ function pubsubPeerDiscovery(init = {}) {
 }
 
 // web/mesh.js
-var RELAY_POOL = [
-  // Example: '/dns4/://your-relay-domain.com...'
-];
+var RELAY_POOL = [];
+async function loadConfiguredRelay() {
+  try {
+    const response = await fetch("/relay-config.json", { cache: "no-store" });
+    if (!response.ok) return "";
+    const config = await response.json();
+    return typeof config.relayAddress === "string" ? config.relayAddress : "";
+  } catch {
+    return "";
+  }
+}
 async function deriveRendezvous(groupName2, groupKey) {
   const raw = new TextEncoder().encode(`cypherlink-v1:${groupName2}:${groupKey}`);
   const hashBuffer = await self.crypto.subtle.digest("SHA-256", raw);
@@ -66660,6 +66668,9 @@ async function createNode(groupName2, groupKey, customRelay = "") {
       ...RELAY_POOL.slice(relayIndex),
       ...RELAY_POOL.slice(0, relayIndex)
     ];
+  } else {
+    const configuredRelay = await loadConfiguredRelay();
+    if (configuredRelay) orderedRelays = [configuredRelay];
   }
   const node = await createLibp2p({
     addresses: {
@@ -66667,7 +66678,9 @@ async function createNode(groupName2, groupKey, customRelay = "") {
     },
     transports: [
       webRTC(),
-      webSockets(),
+      webSockets({
+        filter: () => true
+      }),
       circuitRelayTransport({
         discoverRelays: 1
       })
@@ -66689,7 +66702,8 @@ async function createNode(groupName2, groupKey, customRelay = "") {
       ping: ping(),
       pubsub: gossipsub({
         allowPublishToOwnTopic: true,
-        emitSelf: false
+        emitSelf: false,
+        floodPublish: true
       })
     }
   });
@@ -66698,6 +66712,7 @@ async function createNode(groupName2, groupKey, customRelay = "") {
   node._groupName = groupName2;
   node._topic = topic;
   node._nickname = "";
+  node._discoveryTopic = discoveryTopic;
   if (orderedRelays.length === 0) {
     throw new Error("No relay configured. Start `node relay.js` and paste its address into Custom Relay.");
   }
@@ -66716,22 +66731,34 @@ async function createNode(groupName2, groupKey, customRelay = "") {
     throw new Error(`Relay unreachable: ${lastError?.message || "check relay address"}`);
   }
   node.services.pubsub.subscribe(topic);
+  node.services.pubsub.subscribe(discoveryTopic);
   node.services.pubsub.addEventListener("message", (evt) => {
     if (evt.detail.topic !== topic) return;
     try {
       const data = JSON.parse(new TextDecoder().decode(evt.detail.data));
       const senderId = evt.detail.from ? evt.detail.from.toString() : data.from;
       if (senderId && senderId !== selfId) {
+        if (data.type === "leave") {
+          if (node._peers[senderId]) {
+            delete node._peers[senderId];
+            if (node._onPeerLeft) node._onPeerLeft(senderId);
+          }
+          return;
+        }
         if (!node._peers[senderId]) {
           node._peers[senderId] = {
             id: senderId,
             nickname: data.nickname || "unknown",
-            hasCam: false
+            hasCam: false,
+            lastSeen: Date.now()
           };
           if (node._onPeerFound) node._onPeerFound(node._peers[senderId]);
           sendHello(node, topic, node._nickname);
         } else if (data.nickname && node._peers[senderId].nickname === "unknown") {
           node._peers[senderId].nickname = data.nickname;
+          node._peers[senderId].lastSeen = Date.now();
+        } else {
+          node._peers[senderId].lastSeen = Date.now();
         }
       }
       if (node._onMessage) node._onMessage(data, senderId);
@@ -66760,22 +66787,25 @@ async function createNode(groupName2, groupKey, customRelay = "") {
   node._announceInterval = setInterval(() => {
     sendHello(node, topic, node._nickname || "");
   }, 5e3);
+  node._presenceInterval = setInterval(() => {
+    const timeout = 15e3;
+    const now = Date.now();
+    for (const [id, peer] of Object.entries(node._peers)) {
+      if (now - (peer.lastSeen || 0) > timeout) {
+        delete node._peers[id];
+        if (node._onPeerLeft) node._onPeerLeft(id);
+      }
+    }
+  }, 5e3);
   return { node, topic };
 }
 async function sendHello(node, topic, nickname2) {
-  try {
-    const hello = {
-      type: "hello",
-      from: node.peerId.toString(),
-      nickname: nickname2 || "",
-      ts: Date.now()
-    };
-    await node.services.pubsub.publish(
-      topic,
-      new TextEncoder().encode(JSON.stringify(hello))
-    );
-  } catch (e) {
-  }
+  await sendMessage(node, topic, {
+    type: "hello",
+    from: node.peerId.toString(),
+    nickname: nickname2,
+    ts: Date.now()
+  });
 }
 function setMessageHandler(node, handler) {
   node._onMessage = handler;
@@ -66787,13 +66817,10 @@ function setPeerLeftHandler(node, handler) {
   node._onPeerLeft = handler;
 }
 async function sendMessage(node, topic, payload) {
-  try {
-    await node.services.pubsub.publish(
-      topic,
-      new TextEncoder().encode(JSON.stringify(payload))
-    );
-  } catch (e) {
-  }
+  await node.services.pubsub.publish(
+    topic,
+    new TextEncoder().encode(JSON.stringify(payload))
+  );
 }
 async function updateNickname(node, topic, nickname2) {
   node._nickname = nickname2;
@@ -66801,7 +66828,20 @@ async function updateNickname(node, topic, nickname2) {
 }
 function stopNode(node) {
   if (node._announceInterval) clearInterval(node._announceInterval);
-  node.stop();
+  if (node._presenceInterval) clearInterval(node._presenceInterval);
+  try {
+    const topic = node._topic;
+    node.services.pubsub.publish(
+      topic,
+      new TextEncoder().encode(JSON.stringify({
+        type: "leave",
+        from: node.peerId.toString(),
+        ts: Date.now()
+      }))
+    ).finally(() => node.stop());
+  } catch {
+    node.stop();
+  }
 }
 
 // web/app.js
@@ -66847,10 +66887,21 @@ var CypherlinkCrypto = class {
   }
   async _derive(key) {
     const ikm = new TextEncoder().encode(key);
-    const base20 = await self.crypto.subtle.importKey("raw", ikm, "HKDF", false, ["deriveKey"]);
+    const password = await self.crypto.subtle.importKey(
+      "raw",
+      ikm,
+      "PBKDF2",
+      false,
+      ["deriveKey"]
+    );
     this._key = await self.crypto.subtle.deriveKey(
-      { name: "HKDF", hash: "SHA-256", salt: new Uint8Array(32), info: new TextEncoder().encode("cypherlink-v1") },
-      base20,
+      {
+        name: "PBKDF2",
+        salt: new TextEncoder().encode("cypherlink-v1"),
+        iterations: 25e4,
+        hash: "SHA-256"
+      },
+      password,
       { name: "AES-GCM", length: 256 },
       false,
       ["encrypt", "decrypt"]
@@ -66978,13 +67029,24 @@ function updateCamList() {
   }
 }
 async function createVideoConnection(peerId) {
-  const pc = new RTCPeerConnection({
-    iceServers: [
-      { urls: "stun:://google.com" },
-      { urls: "stun:://google.com" },
-      { urls: "turn:localhost:3478", username: "cypherlink", credential: "cypherlink123" }
-    ]
-  });
+  let networkConfig = {};
+  try {
+    const response = await fetch("/relay-config.json", { cache: "no-store" });
+    if (response.ok) networkConfig = await response.json();
+  } catch {
+  }
+  const iceServers = [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun.cloudflare.com:3478" }
+  ];
+  if (networkConfig.turnUrl) {
+    iceServers.push({
+      urls: networkConfig.turnUrl,
+      username: networkConfig.turnUsername || "cypherlink",
+      credential: networkConfig.turnCredential || "cypherlink"
+    });
+  }
+  const pc = new RTCPeerConnection({ iceServers });
   videoPcs[peerId] = pc;
   pc.onicecandidate = (e) => {
     if (e.candidate) {
@@ -67201,6 +67263,24 @@ document.getElementById("msg-input").addEventListener("keydown", (e) => {
   if (e.key === "Enter") sendMessageHandler();
 });
 document.getElementById("video-btn").addEventListener("click", toggleVideo);
+function closeRoom() {
+  if (localStream) {
+    localStream.getTracks().forEach((track) => track.stop());
+    localStream = null;
+  }
+  for (const pc of Object.values(videoPcs)) pc.close();
+  videoPcs = {};
+  if (meshNode) stopNode(meshNode);
+  meshNode = null;
+  meshTopic = null;
+  groupCrypto = null;
+  document.getElementById("chat-screen").style.display = "none";
+  document.getElementById("join-screen").style.display = "flex";
+  document.getElementById("chat").replaceChildren();
+  document.getElementById("msg-input").value = "";
+  document.getElementById("join-error").textContent = "Room closed. No room data is retained.";
+}
+document.getElementById("close-btn").addEventListener("click", closeRoom);
 window.addEventListener("beforeunload", () => {
   if (meshNode) stopNode(meshNode);
   if (localStream) localStream.getTracks().forEach((t) => t.stop());

@@ -63,10 +63,21 @@ class CypherlinkCrypto {
   }
   async _derive(key) {
     const ikm = new TextEncoder().encode(key);
-    const base = await self.crypto.subtle.importKey('raw', ikm, 'HKDF', false, ['deriveKey']);
+    const password = await self.crypto.subtle.importKey(
+      'raw',
+      ikm,
+      'PBKDF2',
+      false,
+      ['deriveKey']
+    );
     this._key = await self.crypto.subtle.deriveKey(
-      { name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(32), info: new TextEncoder().encode('cypherlink-v1') },
-      base,
+      {
+        name: 'PBKDF2',
+        salt: new TextEncoder().encode('cypherlink-v1'),
+        iterations: 250000,
+        hash: 'SHA-256',
+      },
+      password,
       { name: 'AES-GCM', length: 256 },
       false,
       ['encrypt', 'decrypt']
@@ -190,13 +201,25 @@ function updateCamList() {
 }
 
 async function createVideoConnection(peerId) {
-  const pc = new RTCPeerConnection({
-    iceServers: [
-      { urls: 'stun:://google.com' },
-      { urls: 'stun:://google.com' },
-      { urls: 'turn:localhost:3478', username: 'cypherlink', credential: 'cypherlink123' }
-    ]
-  });
+  let networkConfig = {};
+  try {
+    const response = await fetch('/relay-config.json', { cache: 'no-store' });
+    if (response.ok) networkConfig = await response.json();
+  } catch {}
+
+  const iceServers = [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun.cloudflare.com:3478' },
+  ];
+  if (networkConfig.turnUrl) {
+    iceServers.push({
+      urls: networkConfig.turnUrl,
+      username: networkConfig.turnUsername || 'cypherlink',
+      credential: networkConfig.turnCredential || 'cypherlink',
+    });
+  }
+
+  const pc = new RTCPeerConnection({ iceServers });
   videoPcs[peerId] = pc;
 
   pc.onicecandidate = (e) => {
@@ -437,6 +460,27 @@ document.getElementById('msg-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') sendMessageHandler();
 });
 document.getElementById('video-btn').addEventListener('click', toggleVideo);
+
+function closeRoom() {
+  if (localStream) {
+    localStream.getTracks().forEach(track => track.stop());
+    localStream = null;
+  }
+  for (const pc of Object.values(videoPcs)) pc.close();
+  videoPcs = {};
+  if (meshNode) stopNode(meshNode);
+  meshNode = null;
+  meshTopic = null;
+  groupCrypto = null;
+
+  document.getElementById('chat-screen').style.display = 'none';
+  document.getElementById('join-screen').style.display = 'flex';
+  document.getElementById('chat').replaceChildren();
+  document.getElementById('msg-input').value = '';
+  document.getElementById('join-error').textContent = 'Room closed. No room data is retained.';
+}
+
+document.getElementById('close-btn').addEventListener('click', closeRoom);
 
 // ============ CLEANUP ============
 window.addEventListener('beforeunload', () => {

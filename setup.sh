@@ -53,8 +53,8 @@ no-loopback-peers
 no-cli
 no-stdout-log
 no-timestamp-log
-use-auth-secret
-static-auth-secret=cypherlink123
+lt-cred-mech
+user=cypherlink:cypherlink123
 realm=cypherlink.local
 TURNCONF
     echo "TURNSERVER_ENABLED=1" | sudo tee /etc/default/coturn > /dev/null 2>&1 || true
@@ -74,10 +74,16 @@ if command -v ufw &>/dev/null; then
 fi
 echo "[5/5] Firewall & server ready ✓"
 
-pkill -f "http.server 3000" > /dev/null 2>&1 || true
+# Start a local relay and keep it running while this setup session remains open.
+TURN_URL="turn:127.0.0.1:3478" \
+TURN_USERNAME="cypherlink" \
+TURN_CREDENTIAL="cypherlink123" \
+RELAY_PUBLIC_HOST="127.0.0.1" \
+node relay.js > /tmp/cypherlink-relay.log 2>&1 &
+RELAY_PID=$!
 sleep 1
 
-python3 -m http.server 3000 --directory web > /dev/null 2>&1 &
+python3 -m http.server 3000 --directory web > /tmp/cypherlink-web.log 2>&1 &
 WEB_PID=$!
 sleep 1
 
@@ -92,10 +98,11 @@ echo "════════════════════════�
 echo "  Cypherlink is running!"
 echo ""
 echo "  Open: http://localhost:3000"
-echo "  TURN: turn://localhost:3478"
+echo "  Relay: ws://127.0.0.1:9090"
+echo "  TURN: turn:127.0.0.1:3478"
 echo ""
 echo "  Stop: Ctrl+C"
 echo "══════════════════════════════════════"
 
-trap "kill $WEB_PID 2>/dev/null; exit" INT TERM
+trap "kill $WEB_PID $RELAY_PID 2>/dev/null; exit" INT TERM
 wait

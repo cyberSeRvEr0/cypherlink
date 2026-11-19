@@ -73,6 +73,14 @@ body {
 #group-name { color: #fff; font-weight: bold; }
 #peer-count { color: #888; font-size: 13px; }
 #user-name { color: #0ff; }
+.header-button {
+  border: 1px solid rgba(255,80,80,0.45);
+  background: rgba(80,0,0,0.55);
+  color: #f99;
+  padding: 7px 10px;
+  font-family: inherit;
+  cursor: pointer;
+}
 
 /* --- Video Grid --- */
 #video-grid {

@@ -24,6 +24,8 @@
     "esbuild": "^0.25.0"
   },
   "scripts": {
-    "build": "esbuild web/app.js --bundle --format=esm --platform=browser --outfile=web/bundle.js --define:global=self"
+    "build": "esbuild web/app.js --bundle --format=esm --platform=browser --outfile=web/bundle.js --define:global=self",
+    "relay": "node relay.js",
+    "start": "npm run build && node relay.js"
   }
 }

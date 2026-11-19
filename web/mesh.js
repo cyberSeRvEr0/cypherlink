@@ -19,6 +19,17 @@ import { multiaddr } from '@multiformats/multiaddr';
 // into the "Custom Relay" box on the join screen.
 const RELAY_POOL = [];
 
+async function loadConfiguredRelay() {
+  try {
+    const response = await fetch('/relay-config.json', { cache: 'no-store' });
+    if (!response.ok) return '';
+    const config = await response.json();
+    return typeof config.relayAddress === 'string' ? config.relayAddress : '';
+  } catch {
+    return '';
+  }
+}
+
 async function deriveRendezvous(groupName, groupKey) {
   const raw = new TextEncoder().encode(`cypherlink-v1:${groupName}:${groupKey}`);
   const hashBuffer = await self.crypto.subtle.digest('SHA-256', raw);
@@ -49,6 +60,9 @@ export async function createNode(groupName, groupKey, customRelay = '') {
       ...RELAY_POOL.slice(relayIndex),
       ...RELAY_POOL.slice(0, relayIndex),
     ];
+  } else {
+    const configuredRelay = await loadConfiguredRelay();
+    if (configuredRelay) orderedRelays = [configuredRelay];
   }
 
   const node = await createLibp2p({
@@ -92,6 +106,7 @@ export async function createNode(groupName, groupKey, customRelay = '') {
   node._groupName = groupName;
   node._topic = topic;
   node._nickname = '';
+  node._discoveryTopic = discoveryTopic;
 
   if (orderedRelays.length === 0) {
     throw new Error('No relay configured. Start `node relay.js` and paste its address into Custom Relay.');
@@ -115,6 +130,7 @@ export async function createNode(groupName, groupKey, customRelay = '') {
 
   // Subscribe to the deterministic group topic
   node.services.pubsub.subscribe(topic);
+  node.services.pubsub.subscribe(discoveryTopic);
 
   // Receive messages over libp2p GossipSub
   node.services.pubsub.addEventListener('message', (evt) => {
@@ -124,16 +140,27 @@ export async function createNode(groupName, groupKey, customRelay = '') {
       const senderId = evt.detail.from ? evt.detail.from.toString() : data.from;
 
       if (senderId && senderId !== selfId) {
+        if (data.type === 'leave') {
+          if (node._peers[senderId]) {
+            delete node._peers[senderId];
+            if (node._onPeerLeft) node._onPeerLeft(senderId);
+          }
+          return;
+        }
         if (!node._peers[senderId]) {
           node._peers[senderId] = {
             id: senderId,
             nickname: data.nickname || 'unknown',
             hasCam: false,
+            lastSeen: Date.now(),
           };
           if (node._onPeerFound) node._onPeerFound(node._peers[senderId]);
           sendHello(node, topic, node._nickname);
         } else if (data.nickname && node._peers[senderId].nickname === 'unknown') {
           node._peers[senderId].nickname = data.nickname;
+          node._peers[senderId].lastSeen = Date.now();
+        } else {
+          node._peers[senderId].lastSeen = Date.now();
         }
       }
 
@@ -164,27 +191,31 @@ export async function createNode(groupName, groupKey, customRelay = '') {
   });
 
   await sendHello(node, topic, '');
-
   node._announceInterval = setInterval(() => {
     sendHello(node, topic, node._nickname || '');
+  }, 5000);
+
+  node._presenceInterval = setInterval(() => {
+    const timeout = 15000;
+    const now = Date.now();
+    for (const [id, peer] of Object.entries(node._peers)) {
+      if (now - (peer.lastSeen || 0) > timeout) {
+        delete node._peers[id];
+        if (node._onPeerLeft) node._onPeerLeft(id);
+      }
+    }
   }, 5000);
 
   return { node, topic };
 }
 
 async function sendHello(node, topic, nickname) {
-  try {
-    const hello = {
-      type: 'hello',
-      from: node.peerId.toString(),
-      nickname: nickname || '',
-      ts: Date.now(),
-    };
-    await node.services.pubsub.publish(
-      topic,
-      new TextEncoder().encode(JSON.stringify(hello))
-    );
-  } catch (e) {}
+  await sendMessage(node, topic, {
+    type: 'hello',
+    from: node.peerId.toString(),
+    nickname,
+    ts: Date.now(),
+  });
 }
 
 export function setMessageHandler(node, handler) {
@@ -200,12 +231,10 @@ export function setPeerLeftHandler(node, handler) {
 }
 
 export async function sendMessage(node, topic, payload) {
-  try {
-    await node.services.pubsub.publish(
-      topic,
-      new TextEncoder().encode(JSON.stringify(payload))
-    );
-  } catch (e) {}
+  await node.services.pubsub.publish(
+    topic,
+    new TextEncoder().encode(JSON.stringify(payload))
+  );
 }
 
 export function getPeers(node) {
@@ -219,5 +248,18 @@ export async function updateNickname(node, topic, nickname) {
 
 export function stopNode(node) {
   if (node._announceInterval) clearInterval(node._announceInterval);
-  node.stop();
+  if (node._presenceInterval) clearInterval(node._presenceInterval);
+  try {
+    const topic = node._topic;
+    node.services.pubsub.publish(
+      topic,
+      new TextEncoder().encode(JSON.stringify({
+        type: 'leave',
+        from: node.peerId.toString(),
+        ts: Date.now(),
+      }))
+    ).finally(() => node.stop());
+  } catch {
+    node.stop();
+  }
 }

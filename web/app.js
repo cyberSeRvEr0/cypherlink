@@ -277,10 +277,7 @@ async function handleVideoSignal(data, senderId) {
   if (!pc) pc = await createVideoConnection(senderId);
 
   if (data.sdp.type === 'offer') {
-    // I only answer offers (I'm the larger-ID peer / "answerer").
-    // If I'm the smaller-ID peer, I shouldn't receive an offer — ignore it.
     if (meshNode.peerId.toString() < senderId) return;
-
     if (pc.signalingState !== 'stable') return;
 
     await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
@@ -297,8 +294,10 @@ async function handleVideoSignal(data, senderId) {
     sendMessage(meshNode, meshTopic, {
       type: 'vid_sdp', to: senderId, from: meshNode.peerId.toString(), sdp: pc.localDescription
     });
+  } else if (data.sdp.type === 'answer') {
+    await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
   }
-}      
+}        
 
 function toggleVideo() {
   const btn = document.getElementById('video-btn');

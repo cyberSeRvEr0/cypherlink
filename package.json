@@ -20,6 +20,6 @@
   },
   "scripts": {
     "build": "esbuild web/app.js --bundle --format=esm --platform=browser --outfile=web/bundle.js --define:global=self",
-    "start": "npx serve web"
+    "start": "node relay.js"   
   }
 }   

@@ -100,7 +100,7 @@ const relay = await createLibp2p({
 });
 
 const peerId = relay.peerId.toString();
-const relayAddr = `/ip4/${PUBLIC_HOST}/tcp/${PORT}/ws/p2p/${peerId}`;
+const relayAddr = `/dns4/${PUBLIC_HOST}/tcp/443/tls/ws/p2p/${peerId}`;   
 
 await writeFile(CONFIG_PATH, JSON.stringify({
   relayAddress: relayAddr,

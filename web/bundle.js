@@ -66635,10 +66635,7 @@ function pubsubPeerDiscovery(init = {}) {
 }
 
 // web/mesh.js
-var RELAY_POOL = [
-  "/dns4/node.trustless.network/tcp/443/wss/p2p/QmXJcYDnFPCkGYdJAn1cx2fW7K861EG23M9bXKcg4bXq7q",
-  "/dns4/relay.libp2p.io/tcp/443/wss/p2p/QmYbJZWTCW4S3L51qks54qWi1w7sEY6Sayg9NzMMiez5Ej"
-];
+var RELAY_POOL = [];
 async function loadConfiguredRelay() {
   try {
     const response = await fetch("/relay-config.json", { cache: "no-store" });

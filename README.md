@@ -1,123 +1,115 @@
 # Cypherlink
 
-Cypherlink is a browser-based, temporary group chat with optional video and audio. It has no accounts and does not provide a message-history service or application database. Chat content is encrypted in the browser; peers and network infrastructure can still observe some connection and message metadata.
+Cypherlink is a browser-based group chat prototype with optional video and audio. It has no accounts and does not provide a message-history service or application database. Chat text is encrypted in the browser, but some room, sender, and connection metadata remains visible.
 
-Cypherlink is a prototype, not an anonymity system or audited security product. It does not promise that network activity is invisible or that every trace outside the application can be erased.
+The current networking model is **hosted by one group member**: the host runs a libp2p relay process behind a Cloudflare tunnel, and other members connect to that host's relay address. It is not a serverless or anonymous network. The host must keep the relay process running while the group uses it.
 
-## What it does
+Cypherlink has not had an independent security audit. It does not promise that network activity is invisible or that all traces outside the app can be erased.
 
-- Creates a group topic from the entered group name and invite key.
-- Encrypts each chat message's text using AES-256-GCM in the browser.
-- Uses libp2p Noise to encrypt libp2p transport connections.
-- Uses GossipSub for group messaging and peer discovery.
-- Uses WebRTC for optional camera and microphone calls.
-- Keeps the displayed chat and member list in page memory; it does not implement a message archive or account system.
-- Provides a close-room control that stops local media, asks the node to announce departure, closes connections, and clears the displayed chat.
+## Features
+
+- Temporary, live group chat; no server-side chat archive is implemented.
+- AES-256-GCM encryption of chat text in the browser.
+- libp2p Noise transport encryption and GossipSub group messaging/discovery.
+- Optional WebRTC camera and microphone, using WebRTC's DTLS-SRTP media protection.
+- In-memory member presence and a close-room control.
+- Cloudflare Quick Tunnel for host connectivity: no public IP, no port forwarding, no CGNAT issues.
+- Unique relay URL and peer ID per session (changes every time the host starts a new group).
+- Idle watchdog: relay auto-shuts-down 30 seconds after the last peer disconnects.
 
 ## Requirements
 
-- Node.js 22 or newer and npm to build the browser bundle.
-- A modern browser with Web Crypto, WebRTC, and camera/microphone support for video.
-- A secure browser context for camera/microphone access. `localhost` and HTTPS are typical options; browser restrictions can vary.
+- Node.js 22 or newer and npm.
+- A modern browser with Web Crypto and ES module support.
+- For camera/microphone use, browser permission and a secure context. `localhost` is a secure context.
+- No public IP, no port forwarding, no router configuration. Cloudflare tunnel handles connectivity.
 
-## Run locally
+## Start the application
+
+On each computer, get the project files, then run the setup script.
 
 Linux:
 
-```sh
-chmod +x setup.sh
-./setup.sh
-```
+    chmod +x setup.sh
+    ./setup.sh
 
 Windows:
 
-```bat
-setup.bat
-```
+    setup.bat
 
-The setup scripts install/build dependencies and build `web/bundle.js`. They do not start a dedicated room server. To serve the UI locally, run:
+The scripts install Node.js (if missing), install cloudflared (if missing), build the browser bundle, and ask whether you are creating a new group or joining an existing one.
 
-```sh
-npm install
-npm run build
-npm start
-```
+## Host a group
 
-Open the local URL printed by the static file server. Alternatively, the setup scripts indicate that you can open `web/index.html` directly, though serving it from `localhost` is generally more compatible with browser APIs.
+1. Run `./setup.sh` or `setup.bat` and choose **1) Create a new group**.
+2. The script starts a Cloudflare Quick Tunnel (no account needed) and then starts `relay.js`.
+3. The terminal prints your relay address (a `/dns4/...trycloudflare.com/tcp/443/tls/ws/p2p/Qm...` string).
+4. Copy that address and send it to your members along with the group name and invite key.
+5. Keep the terminal open. Closing it ends the group for everyone.
 
-The static web server only serves the app files. It is not the group messaging network. The browser code has a built-in pool of public libp2p relays; members must be able to reach at least one configured relay or provide a custom relay address in the join screen. Public relay availability and policies are outside this project's control.
+No port forwarding. No public IP. No router configuration. The Cloudflare tunnel makes an outbound connection, so it works behind CGNAT, double NAT, and restrictive firewalls.
 
-## Join and use a group
+The relay URL is unique to this session. When you close the terminal, the URL stops working and the peer ID is gone. Starting a new group generates a new URL and peer ID.
 
-Every member enters the same group name and invite key, and chooses a nickname. The group name is a display label; the name and key are combined and SHA-256 hashed in the browser to derive the GossipSub topic. The invite key is also used locally to derive the AES-GCM key with PBKDF2-HMAC-SHA-256 (250,000 iterations and a fixed application salt).
+## Join a group
 
-Use a long, random invite key and share it through a separate trusted channel. A short or common key can be guessed. The topic derivation is an unsalted hash, not a secure password-authenticated room directory or access-control service. The topic is deterministic: re-entering the same group name and key produces the same topic.
+1. Get the project files and run the setup script. Choose **2) Join an existing group**.
+2. The script starts a local web server and opens `http://localhost:3000`.
+3. Enter the same group name and invite key as the host, choose a nickname, and paste the host's relay address into the **Custom Relay** field.
+4. Click **ENTER**.
 
-The application does not create a dedicated server or a persistent room record for each group. Its configured relays are shared network infrastructure, not temporary servers created for a group. When nobody is participating, there is no active chat session managed by the app; the same topic can be used again later by anyone with the same inputs.
+The group name and invite key are combined and SHA-256 hashed in the browser to derive a GossipSub topic. The invite key is also used to derive the AES key locally with PBKDF2-HMAC-SHA-256 (250,000 iterations and a fixed application salt). The topic is deterministic: the same inputs produce the same topic. Use a long, random invite key and share it through a separate trusted channel.
 
-## Message and media protection
+## Chat, media, and privacy
 
-### Chat
+### Chat text
 
-The browser encrypts message text with AES-256-GCM using a fresh random 12-byte IV for each message. Recipients with the same invite key decrypt the text locally. The code does not encrypt the whole message envelope: the sender nickname, message type, and timestamp are sent outside the ciphertext. Nicknames are also sent in plaintext in presence (`hello`) announcements and camera-on notifications.
+The browser encrypts each chat message's text using AES-256-GCM and a fresh random 12-byte IV. Members with the same invite key can decrypt it. The message sender nickname, type, and timestamp are outside the ciphertext and are not hidden by this app-level encryption. Nicknames are also sent in plaintext in presence (`hello`) messages and camera-on notifications.
 
-AES-GCM authenticates each ciphertext, but all group members share the same key. This does not authenticate which individual member sent a message or prevent a key holder from impersonating another nickname.
+All members share the same group key. This does not verify which person sent a message: a member who knows the key can decrypt messages and can claim any nickname.
 
 ### Video and audio
 
-The browser uses WebRTC. WebRTC protects media with SRTP, with keys negotiated through DTLS (DTLS-SRTP). The media content is encrypted in transit; participating endpoints can, of course, see and hear it.
+WebRTC protects media with SRTP, with keys negotiated using DTLS-SRTP. SDP offers/answers and ICE candidates are separate WebRTC setup messages; this app sends them through the group messaging topic without encrypting them with the chat AES key. They can expose connection details and candidate addresses. STUN is configured for connectivity.
 
-WebRTC setup messages are different from media. The app publishes SDP offers/answers and ICE candidates through the group messaging topic. These signaling values are not encrypted by the app's AES-GCM chat encryption. They can reveal connection details, and STUN can reveal network addresses. If a TURN server is used, it forwards media packets but does not receive the DTLS-SRTP media keys from this application.
+Video may fail on restrictive NATs or firewalls.
 
-## What may be observable
+### Metadata and limits
 
-Encryption protects content; it does not hide that a connection or group activity exists. Depending on the path and the observer, the following may be visible:
+Encryption protects message text and WebRTC media in transit; it does not make the connection invisible. Depending on the route and observer, metadata may include:
 
-- IP addresses, connection times, and connection duration.
-- Peer IDs and which peers connect or exchange messages.
-- The derived topic hash and the fact that traffic relates to that topic. The hash does not directly display the entered group name, but weak names/keys may be guessable.
-- Plaintext nicknames in `hello`, `cam_on`, and chat sender fields.
-- Message type, approximate size, timing, frequency, and timestamps.
+- IP addresses, connection times, and connection duration (visible to Cloudflare's edge).
+- Peer IDs and peer connection/topology information.
+- The derived topic hash, message types, sizes, timestamps, timing, and frequency.
+- Plaintext nicknames in presence, camera-on, and message sender fields.
 - WebRTC SDP/ICE signaling and candidate addresses.
-- Media connection metadata, including STUN/TURN use.
 
-The built-in relay pool consists of third-party services. The exact metadata each relay operator can observe depends on how libp2p routes the connection and messages; do not assume that a relay sees only encrypted payloads or that every relay sees every field. Peers in the group receive application messages and may record or share them.
+The host relay handles libp2p connections and GossipSub traffic. Libp2p Noise protects transport connections, but it does not hide all connection metadata from the host or network operators. Peers can save, copy, or share anything they receive. The app cannot control browser, operating-system, ISP, router, or relay logs.
 
 ## Leaving and data lifetime
 
-Chat history is held in the browser page's memory, not persisted by Cypherlink to a server-side message database. Refreshing or closing the tab clears that page's displayed history and requires the user to join again. Closing a room also clears the current chat display and stops local media.
+Displayed chat and peer presence are held in page memory. Refreshing or closing a tab clears that page's displayed history and requires the user to join again. Closing the room stops local media, asks the node to announce departure, stops the node, and clears the displayed chat.
 
-Peers that stop announcing are removed from the local member list after approximately 15 seconds. The app has no central room-membership database and cannot prove that all participants have left at the same instant. A shared relay is not created or destroyed for each group.
+Peers that stop announcing are removed from each client's in-memory peer list after approximately 15 seconds. There is no authoritative room registry, and a group using the same name and key can be used again later. This does not erase copies already made by users or records kept outside Cypherlink.
 
-This behavior does not erase copies made by participants, browser or operating-system data, or network and relay logs. Application-level deletion cannot control infrastructure outside Cypherlink.
+When the host closes their terminal, the Cloudflare tunnel and relay process terminate. The relay URL becomes unreachable. `relay-config.json` is deleted on clean shutdown; a crash or forced termination may leave it behind.
 
-## Optional self-hosted relay
-
-`relay.js` can run a libp2p Circuit Relay v2 node and static web server. It is optional when a built-in public relay is reachable. If using a self-hosted relay, start it with:
-
-```sh
-node relay.js
-```
-
-Set `RELAY_PUBLIC_HOST` to a hostname or address reachable by your group; the default `127.0.0.1` is only reachable on the same device. The relay prints its multiaddress. Enter that address in the join screen's **Custom Relay** field on each member's device. Make sure the required ports and browser-compatible secure web serving are configured for your deployment.
-
-The self-hosted relay's idle watchdog shuts down the relay process after it has had peers and then has no connected peers for the configured idle period (30 seconds by default). This is a process-wide idle timeout, not a per-group room deletion mechanism. On clean shutdown, the relay removes `web/relay-config.json`; a crash or forced termination may leave it behind. This file contains relay/TURN configuration, not chat history.
-
-The app also supports optional TURN settings via `relay-config.json` for WebRTC connectivity. TURN is separate from the libp2p Circuit Relay used for peer connectivity. Do not use example or default credentials for a public TURN service.
-
-## Project layout
+## Project files
 
 - `web/app.js` — UI, local chat encryption, message handling, and WebRTC
-- `web/mesh.js` — libp2p node, GossipSub, peer discovery, relay connections, and presence
+- `web/mesh.js` — libp2p node, GossipSub, discovery, relay connection, and presence
 - `web/index.html` and `web/style.css` — browser interface
-- `relay.js` — optional self-hosted Circuit Relay v2 and static file server
-- `setup.sh` and `setup.bat` — dependency/build setup
-- `web/bundle.js` — generated browser bundle
+- `web/bundle.js` — generated browser bundle loaded by the page
+- `relay.js` — host-run Circuit Relay v2, GossipSub node, and static web server
+- `setup.sh` — Linux: install deps, build, cloudflared tunnel, host/member launch
+- `setup.bat` — Windows: install deps, build, cloudflared tunnel, host/member launch
+- `package.json` — npm scripts and dependencies
 
 ## Security notes
 
 - Do not describe Cypherlink as untraceable, invisible, or capable of erasing all external records.
-- Protect the invite key. Anyone who obtains it can derive the group chat key and read messages they receive.
-- Nicknames are labels, not verified identities.
-- Use trusted app delivery: a compromised app or device can read plaintext before encryption or after decryption.
-- This prototype has not had an independent security audit. Do not use it as the sole protection for high-risk communication.
+- Protect the invite key. Anyone who obtains it can derive the group encryption key.
+- Use only a trusted copy of the app; compromised app code or endpoints can access plaintext before encryption or after decryption.
+- The host exposes a relay service via Cloudflare. The relay URL is unique per session and dies when the host's terminal closes.
+- Cloudflare's edge can observe connection metadata (IPs, timing, byte counts). This is a tradeoff of using their free tunnel service.
+- This prototype has not been independently audited. Do not rely on it as the sole protection for high-risk communication.   

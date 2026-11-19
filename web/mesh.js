@@ -210,12 +210,16 @@ export async function createNode(groupName, groupKey, customRelay = '') {
 }
 
 async function sendHello(node, topic, nickname) {
-  await sendMessage(node, topic, {
-    type: 'hello',
-    from: node.peerId.toString(),
-    nickname,
-    ts: Date.now(),
-  });
+  try {
+    await sendMessage(node, topic, {
+      type: 'hello',
+      from: node.peerId.toString(),
+      nickname,
+      ts: Date.now(),
+    });
+  } catch (e) {
+    if (e?.message !== 'PublishError.NoPeersSubscribedToTopic') throw e;
+  }
 }
 
 export function setMessageHandler(node, handler) {

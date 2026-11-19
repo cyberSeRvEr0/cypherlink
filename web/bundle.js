@@ -66800,12 +66800,16 @@ async function createNode(groupName2, groupKey, customRelay = "") {
   return { node, topic };
 }
 async function sendHello(node, topic, nickname2) {
-  await sendMessage(node, topic, {
-    type: "hello",
-    from: node.peerId.toString(),
-    nickname: nickname2,
-    ts: Date.now()
-  });
+  try {
+    await sendMessage(node, topic, {
+      type: "hello",
+      from: node.peerId.toString(),
+      nickname: nickname2,
+      ts: Date.now()
+    });
+  } catch (e) {
+    if (e?.message !== "PublishError.NoPeersSubscribedToTopic") throw e;
+  }
 }
 function setMessageHandler(node, handler) {
   node._onMessage = handler;

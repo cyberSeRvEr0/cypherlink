@@ -51804,6 +51804,8 @@ async function handleVideoSignal(data, senderId) {
       from: meshNode.peerId.toString(),
       sdp: pc.localDescription
     });
+  } else if (data.sdp.type === "answer") {
+    await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
   }
 }
 function toggleVideo() {

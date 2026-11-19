@@ -14,6 +14,7 @@ fi
 echo "[1/5] Python 3 ready ✓"
 
 # --- 2. Node.js 22+ & npm ---
+export PATH="/snap/bin:$PATH"
 NODE_MAJOR=$(node -v 2>/dev/null | cut -d'.' -f1 | tr -d 'v' || echo 0)
 if [ "$NODE_MAJOR" -lt 22 ]; then
     echo "[2/5] Installing Node.js 22..."
@@ -29,12 +30,12 @@ if [ "$NODE_MAJOR" -lt 22 ]; then
 fi
 echo "[2/5] Node.js $(node -v) ready ✓"
 
-# --- 3. Dependencies & Bundle (Silent) ---
+# --- 3. Dependencies & Bundle ---
 echo "[3/5] Preparing application..."
 if [ ! -d "node_modules" ]; then
-    npm install --silent --no-fund --no-audit > /dev/null 2>&1
+    npm install --loglevel=error --no-fund --no-audit
 fi
-npm run build --silent > /dev/null 2>&1
+npm run build --loglevel=error
 echo "[3/5] Application built ✓"
 
 # --- 4. TURN Server (Silent) ---

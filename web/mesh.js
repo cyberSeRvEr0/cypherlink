@@ -2,7 +2,6 @@
  * Cypherlink mesh — Browser P2P via libp2p GossipSub + WebRTC + Circuit Relay.
  * Deterministic rendezvous routing from Group + Invite Key.
  */
-import * as filters from '@libp2p/websockets/filters';
 import { createLibp2p } from 'libp2p';
 import { webRTC } from '@libp2p/webrtc';
 import { webSockets } from '@libp2p/websockets';
@@ -17,10 +16,8 @@ import { multiaddr } from '@multiformats/multiaddr';
 
 // Add your deployed cloud relay multiaddr(s) here (no personal home IPs).
 // For local VM testing, paste the /ip4/127.0.0.1/tcp/9090/ws/p2p/... address from `node relay.js`
-// OR paste it directly into the "Custom Relay" box on the join screen.
-const RELAY_POOL = [
-  // Example: '/dns4/://your-relay-domain.com...'
-];
+// into the "Custom Relay" box on the join screen.
+const RELAY_POOL = [];
 
 async function deriveRendezvous(groupName, groupKey) {
   const raw = new TextEncoder().encode(`cypherlink-v1:${groupName}:${groupKey}`);
@@ -61,7 +58,7 @@ export async function createNode(groupName, groupKey, customRelay = '') {
     transports: [
       webRTC(),
       webSockets({
-        filter: filters.all,
+        filter: () => true,
       }),
       circuitRelayTransport({
         discoverRelays: 1,
@@ -85,6 +82,7 @@ export async function createNode(groupName, groupKey, customRelay = '') {
       pubsub: gossipsub({
         allowPublishToOwnTopic: true,
         emitSelf: false,
+        floodPublish: true,
       }),
     },
   });

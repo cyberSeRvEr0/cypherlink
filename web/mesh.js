@@ -17,7 +17,10 @@ import { multiaddr } from '@multiformats/multiaddr';
 // Add your deployed cloud relay multiaddr(s) here (no personal home IPs).
 // For local VM testing, paste the /ip4/127.0.0.1/tcp/9090/ws/p2p/... address from `node relay.js`
 // into the "Custom Relay" box on the join screen.
-const RELAY_POOL = [];
+const RELAY_POOL = [
+  '/dns4/node.trustless.network/tcp/443/wss/p2p/QmXJcYDnFPCkGYdJAn1cx2fW7K861EG23M9bXKcg4bXq7q',
+  '/dns4/relay.libp2p.io/tcp/443/wss/p2p/QmYbJZWTCW4S3L51qks54qWi1w7sEY6Sayg9NzMMiez5Ej',
+];   
 
 async function loadConfiguredRelay() {
   try {

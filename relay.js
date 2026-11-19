@@ -116,7 +116,7 @@ console.log(`  Auto-shutdown: ${IDLE_TIMEOUT / 1000}s after last peer leaves\n`)
 // ─── DYNAMIC TOPIC SUBSCRIPTION ───────────────────────────────────────
 // When a connected peer subscribes to a GossipSub topic, the relay
 // subscribes too so it can forward messages between peers.
-relay.services.pubsub.addEventListener('subscriptionChange', (evt) => {
+relay.services.pubsub.addEventListener('subscription-change', (evt) => {   
   const { subscriptions } = evt.detail;
   for (const sub of subscriptions) {
     if (sub.subscribe) {

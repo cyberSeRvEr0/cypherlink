@@ -22,7 +22,7 @@ const { circuitRelayServer } = await import('@libp2p/circuit-relay-v2');
 const { noise } = await import('@chainsafe/libp2p-noise');
 const { yamux } = await import('@chainsafe/libp2p-yamux');
 const { identify } = await import('@libp2p/identify');
-const { gossipsub } = await import('@libp2p/gossipsub');   
+const { gossipsub }= await import('@libp2p/gossipsub');   
 const { createServer } = await import('node:http');
 const { readFile, writeFile, unlink } = await import('node:fs/promises');
 const { join, resolve, extname, sep } = await import('node:path');
@@ -112,6 +112,18 @@ await writeFile(CONFIG_PATH, JSON.stringify({
 console.log('\n  Cypherlink Relay Ready');
 console.log(`  Relay: ${relayAddr}`);
 console.log(`  Auto-shutdown: ${IDLE_TIMEOUT / 1000}s after last peer leaves\n`);
+
+// ─── DYNAMIC TOPIC SUBSCRIPTION ───────────────────────────────────────
+// When a connected peer subscribes to a GossipSub topic, the relay
+// subscribes too so it can forward messages between peers.
+relay.services.pubsub.addEventListener('subscriptionChange', (evt) => {
+  const { subscriptions } = evt.detail;
+  for (const sub of subscriptions) {
+    if (sub.subscribe) {
+      relay.services.pubsub.subscribe(sub.topic);
+    }
+  }
+});   
 
 // ─── IDLE WATCHDOG (starts only after first peer) ─────────────────────
 let lastActivity = null;

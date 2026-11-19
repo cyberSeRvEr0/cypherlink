@@ -250,6 +250,8 @@ async function sendVideoOffer(peerId) {
   let pc = videoPcs[peerId];
   if (!pc) pc = await createVideoConnection(peerId);
 
+  if (pc.signalingState !== 'stable') return; // already in progress
+
   if (localStream) {
     const existingSenders = pc.getSenders().map(s => s.track);
     localStream.getTracks().forEach(t => {
@@ -270,8 +272,17 @@ async function handleVideoSignal(data, senderId) {
   let pc = videoPcs[senderId];
   if (!pc) pc = await createVideoConnection(senderId);
 
-  await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+  // Polite peer = lexicographically smaller peer ID
+  const isPolite = meshNode.peerId.toString() < senderId;
+
   if (data.sdp.type === 'offer') {
+    // Glare: we already sent an offer, they sent one too
+    if (pc.signalingState === 'have-local-offer') {
+      if (!isPolite) return; // impolite peer ignores the incoming offer
+      await pc.setLocalDescription(null); // polite peer rolls back
+    }
+
+    await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
     if (localStream) {
       const existingSenders = pc.getSenders().map(s => s.track);
       localStream.getTracks().forEach(t => {
@@ -286,7 +297,7 @@ async function handleVideoSignal(data, senderId) {
       type: 'vid_sdp', to: senderId, from: meshNode.peerId.toString(), sdp: pc.localDescription
     });
   }
-}
+}   
 
 function toggleVideo() {
   const btn = document.getElementById('video-btn');

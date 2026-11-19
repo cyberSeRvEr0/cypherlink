@@ -51762,6 +51762,7 @@ async function createVideoConnection(peerId) {
 async function sendVideoOffer(peerId) {
   let pc = videoPcs[peerId];
   if (!pc) pc = await createVideoConnection(peerId);
+  if (pc.signalingState !== "stable") return;
   if (localStream) {
     const existingSenders = pc.getSenders().map((s2) => s2.track);
     localStream.getTracks().forEach((t) => {
@@ -51782,8 +51783,13 @@ async function sendVideoOffer(peerId) {
 async function handleVideoSignal(data, senderId) {
   let pc = videoPcs[senderId];
   if (!pc) pc = await createVideoConnection(senderId);
-  await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+  const isPolite = meshNode.peerId.toString() < senderId;
   if (data.sdp.type === "offer") {
+    if (pc.signalingState === "have-local-offer") {
+      if (!isPolite) return;
+      await pc.setLocalDescription(null);
+    }
+    await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
     if (localStream) {
       const existingSenders = pc.getSenders().map((s2) => s2.track);
       localStream.getTracks().forEach((t) => {

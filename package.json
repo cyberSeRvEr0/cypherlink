@@ -16,10 +16,11 @@
     "libp2p": "^3.5.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.1",
     "esbuild": "^0.25.0"
   },
   "scripts": {
     "build": "esbuild web/app.js --bundle --format=esm --platform=browser --outfile=web/bundle.js --define:global=self",
     "start": "node relay.js"
   }
-}   
+}

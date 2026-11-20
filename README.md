@@ -42,7 +42,7 @@ The scripts install Node.js (if missing), install cloudflared (if missing) to `~
 ## Host a group
 
 1. Run `./setup.sh` or `setup.bat` and choose **1) Create a new group**.
-2. The script starts a Cloudflare Quick Tunnel (no account needed) and then starts `relay.js`.
+2. The script starts a Cloudflare Quick Tunnel (no account needed), waits up to 30 seconds for its URL, and then starts `relay.js`. If tunnel startup fails, it prints the `cloudflared` diagnostic output.
 3. The terminal prints your relay address (a `/dns4/...trycloudflare.com/tcp/443/tls/ws/p2p/Qm...` string).
 4. Copy that address and send it to your members along with the group name and invite key.
 5. Keep the terminal open. Closing it ends the group for everyone.

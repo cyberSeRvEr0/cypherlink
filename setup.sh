@@ -66,14 +66,27 @@ if [ "$ROLE" = "1" ]; then
     # HOST: start cloudflared tunnel + relay
     cloudflared tunnel --url http://localhost:9090 > /tmp/cypherlink-cf.log 2>&1 &
     CF_PID=$!
-    sleep 4
-
-    CF_URL=$(grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' /tmp/cypherlink-cf.log | head -1)
+    CF_URL=""
+    for attempt in {1..30}; do
+        CF_URL=$(grep -Eo 'https://[a-zA-Z0-9-]+\.trycloudflare\.com' /tmp/cypherlink-cf.log | head -1 || true)
+        if [ -n "$CF_URL" ]; then
+            break
+        fi
+        if ! kill -0 "$CF_PID" 2>/dev/null; then
+            break
+        fi
+        sleep 1
+    done
 
     if [ -z "$CF_URL" ]; then
-        echo "ERROR: Cloudflare tunnel failed to start."
-        echo "       Check /tmp/cypherlink-cf.log for details."
-        kill $CF_PID 2>/dev/null || true
+        echo "ERROR: Cloudflare did not provide a tunnel URL."
+        echo "       cloudflared output:"
+        if [ -s /tmp/cypherlink-cf.log ]; then
+            tail -n 40 /tmp/cypherlink-cf.log
+        else
+            echo "       (no output; cloudflared exited before writing a log)"
+        fi
+        kill "$CF_PID" 2>/dev/null || true
         exit 1
     fi
 

@@ -7,7 +7,7 @@ echo "╚═══════════════════════�
 echo ""
 
 # --- 1. Node.js 22+ ---
-export PATH="/snap/bin:$PATH"
+export PATH="$HOME/.local/bin:/snap/bin:$PATH"
 NODE_MAJOR=$(node -v 2>/dev/null | cut -d'.' -f1 | tr -d 'v' || echo 0)
 if [ "$NODE_MAJOR" -lt 22 ]; then
     echo "[1/5] Installing Node.js 22..."
@@ -27,12 +27,20 @@ echo "[1/5] Node.js $(node -v) ready ✓"
 if ! command -v cloudflared &>/dev/null; then
     echo "[2/5] Installing cloudflared..."
     ARCH=$(uname -m)
-    if [ "$ARCH" = "aarch64" ]; then
-        curl -sL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64 -o /usr/local/bin/cloudflared
-    else
-        curl -sL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o /usr/local/bin/cloudflared
-    fi
-    chmod +x /usr/local/bin/cloudflared
+    case "$ARCH" in
+        aarch64|arm64) CLOUDFLARED_ARCH=arm64 ;;
+        x86_64|amd64) CLOUDFLARED_ARCH=amd64 ;;
+        *)
+            echo "ERROR: Unsupported architecture for cloudflared: $ARCH"
+            exit 1
+            ;;
+    esac
+    mkdir -p "$HOME/.local/bin"
+    curl --fail --location --show-error --retry 3 \
+        "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-$CLOUDFLARED_ARCH" \
+        -o "$HOME/.local/bin/cloudflared"
+    chmod +x "$HOME/.local/bin/cloudflared"
+    "$HOME/.local/bin/cloudflared" --version
 else
     echo "[2/5] cloudflared ready ✓"
 fi

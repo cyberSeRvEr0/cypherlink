@@ -37,7 +37,7 @@ Windows:
 
     setup.bat
 
-The scripts install Node.js (if missing), install cloudflared (if missing), build the browser bundle, and ask whether you are creating a new group or joining an existing one.
+The scripts install Node.js (if missing), install cloudflared (if missing) to `~/.local/bin` on Linux, build the browser bundle, and ask whether you are creating a new group or joining an existing one. The Linux setup does not require `sudo` to install cloudflared.
 
 ## Host a group
 

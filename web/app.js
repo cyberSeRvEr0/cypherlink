@@ -159,7 +159,12 @@ function showVideoInCircle(stream) {
   const video = document.getElementById('circle-video');
   if (video) {
     video.srcObject = stream;
+    video.muted = stream === localStream;
     document.getElementById('video-circle').style.display = 'block';
+    video.play().catch(() => {
+      video.muted = true;
+      video.play().catch(() => {});
+    });
   }
 }
 
@@ -317,7 +322,6 @@ function toggleVideo() {
       localStream = stream;
       btn.classList.add('active');
       btn.textContent = 'STOP';
-      activeVideoPeer = 'self';
       showVideoInCircle(stream);
       sendMessage(meshNode, meshTopic, { type: 'cam_on', from: meshNode.peerId.toString(), nickname });
       for (const pid of Object.keys(meshNode._peers)) {

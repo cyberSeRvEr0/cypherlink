@@ -51657,18 +51657,25 @@ async function handleIncoming(data, senderId) {
     }
   } else if (data.type === "vid_ice") {
     if (!data.to || data.to === selfId) {
-      const pc = videoPcs[senderId];
-      if (pc) {
+      const pc = videoPcs[senderId] || await createVideoConnection(senderId);
+      if (pc.remoteDescription) {
         try {
           await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
         } catch (e) {
         }
+      } else {
+        const candidates = pendingVideoIce.get(senderId) || [];
+        candidates.push(data.candidate);
+        pendingVideoIce.set(senderId, candidates);
       }
     }
   }
 }
 var activeVideoPeer = null;
 var videoPcs = {};
+var pendingVideoIce = /* @__PURE__ */ new Map();
+var videoOfferLocks = /* @__PURE__ */ new Set();
+var videoSignalQueues = /* @__PURE__ */ new Map();
 function showVideoInCircle(stream) {
   const video = document.getElementById("circle-video");
   if (video) {
@@ -51767,33 +51774,53 @@ async function createVideoConnection(peerId) {
 }
 async function sendVideoOffer(peerId) {
   if (meshNode.peerId.toString() > peerId) return;
-  let pc = videoPcs[peerId];
-  if (!pc) pc = await createVideoConnection(peerId);
-  if (pc.signalingState !== "stable") return;
-  if (localStream) {
-    const existingSenders = pc.getSenders().map((s2) => s2.track);
-    localStream.getTracks().forEach((t) => {
-      if (!existingSenders.includes(t)) {
-        pc.addTrack(t, localStream);
-      }
+  if (videoOfferLocks.has(peerId)) return;
+  videoOfferLocks.add(peerId);
+  try {
+    let pc = videoPcs[peerId];
+    if (!pc) pc = await createVideoConnection(peerId);
+    if (pc.signalingState !== "stable") return;
+    if (localStream) {
+      const existingSenders = pc.getSenders().map((s2) => s2.track);
+      localStream.getTracks().forEach((t) => {
+        if (!existingSenders.includes(t)) {
+          pc.addTrack(t, localStream);
+        }
+      });
+    }
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    await sendMessage(meshNode, meshTopic, {
+      type: "vid_sdp",
+      to: peerId,
+      from: meshNode.peerId.toString(),
+      sdp: pc.localDescription
     });
+  } finally {
+    videoOfferLocks.delete(peerId);
   }
-  const offer = await pc.createOffer();
-  await pc.setLocalDescription(offer);
-  sendMessage(meshNode, meshTopic, {
-    type: "vid_sdp",
-    to: peerId,
-    from: meshNode.peerId.toString(),
-    sdp: pc.localDescription
-  });
 }
 async function handleVideoSignal(data, senderId) {
+  const previous = videoSignalQueues.get(senderId) || Promise.resolve();
+  const current = previous.catch(() => {
+  }).then(() => processVideoSignal(data, senderId));
+  videoSignalQueues.set(senderId, current);
+  try {
+    await current;
+  } finally {
+    if (videoSignalQueues.get(senderId) === current) {
+      videoSignalQueues.delete(senderId);
+    }
+  }
+}
+async function processVideoSignal(data, senderId) {
   let pc = videoPcs[senderId];
   if (!pc) pc = await createVideoConnection(senderId);
   if (data.sdp.type === "offer") {
     if (meshNode.peerId.toString() < senderId) return;
     if (pc.signalingState !== "stable") return;
     await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+    await applyPendingVideoIce(senderId, pc);
     if (localStream) {
       const existingSenders = pc.getSenders().map((s2) => s2.track);
       localStream.getTracks().forEach((t) => {
@@ -51810,8 +51837,19 @@ async function handleVideoSignal(data, senderId) {
       from: meshNode.peerId.toString(),
       sdp: pc.localDescription
     });
-  } else if (data.sdp.type === "answer") {
+  } else if (data.sdp.type === "answer" && pc.signalingState === "have-local-offer") {
     await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+    await applyPendingVideoIce(senderId, pc);
+  }
+}
+async function applyPendingVideoIce(peerId, pc) {
+  const candidates = pendingVideoIce.get(peerId) || [];
+  pendingVideoIce.delete(peerId);
+  for (const candidate of candidates) {
+    try {
+      await pc.addIceCandidate(new RTCIceCandidate(candidate));
+    } catch (e) {
+    }
   }
 }
 function toggleVideo() {

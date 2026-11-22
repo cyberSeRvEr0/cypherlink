@@ -51674,6 +51674,7 @@ async function handleIncoming(data, senderId) {
 var activeVideoPeer = null;
 var videoPcs = {};
 var pendingVideoIce = /* @__PURE__ */ new Map();
+var pendingVideoOffers = /* @__PURE__ */ new Set();
 var videoOfferLocks = /* @__PURE__ */ new Set();
 var videoSignalQueues = /* @__PURE__ */ new Map();
 function showVideoInCircle(stream) {
@@ -51774,12 +51775,19 @@ async function createVideoConnection(peerId) {
 }
 async function sendVideoOffer(peerId) {
   if (meshNode.peerId.toString() > peerId) return;
-  if (videoOfferLocks.has(peerId)) return;
+  if (videoOfferLocks.has(peerId)) {
+    pendingVideoOffers.add(peerId);
+    return;
+  }
   videoOfferLocks.add(peerId);
+  let pc;
   try {
-    let pc = videoPcs[peerId];
+    pc = videoPcs[peerId];
     if (!pc) pc = await createVideoConnection(peerId);
-    if (pc.signalingState !== "stable") return;
+    if (pc.signalingState !== "stable") {
+      pendingVideoOffers.add(peerId);
+      return;
+    }
     if (localStream) {
       const existingSenders = pc.getSenders().map((s2) => s2.track);
       localStream.getTracks().forEach((t) => {
@@ -51798,7 +51806,13 @@ async function sendVideoOffer(peerId) {
     });
   } finally {
     videoOfferLocks.delete(peerId);
+    await flushPendingVideoOffer(peerId, pc);
   }
+}
+async function flushPendingVideoOffer(peerId, pc = videoPcs[peerId]) {
+  if (!pendingVideoOffers.has(peerId) || !pc || pc.signalingState !== "stable" || videoOfferLocks.has(peerId)) return;
+  pendingVideoOffers.delete(peerId);
+  await sendVideoOffer(peerId);
 }
 async function handleVideoSignal(data, senderId) {
   const previous = videoSignalQueues.get(senderId) || Promise.resolve();
@@ -51840,6 +51854,7 @@ async function processVideoSignal(data, senderId) {
   } else if (data.sdp.type === "answer" && pc.signalingState === "have-local-offer") {
     await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
     await applyPendingVideoIce(senderId, pc);
+    await flushPendingVideoOffer(senderId, pc);
   }
 }
 async function applyPendingVideoIce(peerId, pc) {

@@ -159,6 +159,7 @@ async function handleIncoming(data, senderId) {
 let activeVideoPeer = null;
 let videoPcs = {};
 const pendingVideoIce = new Map();
+const pendingVideoOffers = new Set();
 const videoOfferLocks = new Set();
 const videoSignalQueues = new Map();
 
@@ -262,14 +263,21 @@ async function sendVideoOffer(peerId) {
   // Deterministic offerer: only the smaller peer ID sends offers.
   // This eliminates glare entirely.
   if (meshNode.peerId.toString() > peerId) return;
-  if (videoOfferLocks.has(peerId)) return;
+  if (videoOfferLocks.has(peerId)) {
+    pendingVideoOffers.add(peerId);
+    return;
+  }
 
   videoOfferLocks.add(peerId);
+  let pc;
   try {
-    let pc = videoPcs[peerId];
+    pc = videoPcs[peerId];
     if (!pc) pc = await createVideoConnection(peerId);
 
-    if (pc.signalingState !== 'stable') return;
+    if (pc.signalingState !== 'stable') {
+      pendingVideoOffers.add(peerId);
+      return;
+    }
 
     if (localStream) {
       const existingSenders = pc.getSenders().map(s => s.track);
@@ -287,8 +295,15 @@ async function sendVideoOffer(peerId) {
     });
   } finally {
     videoOfferLocks.delete(peerId);
+    await flushPendingVideoOffer(peerId, pc);
   }
 }   
+
+async function flushPendingVideoOffer(peerId, pc = videoPcs[peerId]) {
+  if (!pendingVideoOffers.has(peerId) || !pc || pc.signalingState !== 'stable' || videoOfferLocks.has(peerId)) return;
+  pendingVideoOffers.delete(peerId);
+  await sendVideoOffer(peerId);
+}
 
 async function handleVideoSignal(data, senderId) {
   const previous = videoSignalQueues.get(senderId) || Promise.resolve();
@@ -329,6 +344,7 @@ async function processVideoSignal(data, senderId) {
   } else if (data.sdp.type === 'answer' && pc.signalingState === 'have-local-offer') {
     await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
     await applyPendingVideoIce(senderId, pc);
+    await flushPendingVideoOffer(senderId, pc);
   }
 }
 
